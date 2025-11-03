@@ -1,0 +1,9 @@
+requests
+pandas
+snownlp
+vaderSentiment
+jieba
+langdetect
+wordcloud
+matplotlib
+streamlit

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎮 Steam 游戏评论雷达</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- 自定义 CSS -->
+  <style>
+    /* ===== 页面整体 ===== */
+    body {
+      background: radial-gradient(circle at top, #1b1b2f, #0d0d16);
+      color: #e0e0e0;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    h1, h3, h4 { color: #4fc3f7; text-shadow: 0 0 10px rgba(79,195,247,0.5); }
+
+    /* ===== 游戏信息卡 ===== */
+    .info-card {
+      background-color: rgba(40,40,60,0.9);
+      border: 1px solid #4fc3f7;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px auto;
+      width: 80%;
+      box-shadow: 0 0 20px rgba(79,195,247,0.3);
+    }
+    .game-cover {
+      border-radius: 10px;
+      box-shadow: 0 0 25px rgba(79,195,247,0.4);
+    }
+
+    /* ===== Masonry 评论卡 ===== */
+    .masonry {
+      column-count: 3;
+      column-gap: 1rem;
+      padding: 0 1rem;
+    }
+    .masonry-item {
+      break-inside: avoid;
+      margin-bottom: 0.6rem;
+    }
+    .card {
+      background: rgba(44,44,64,0.85);
+      border: 1px solid rgba(79,195,247,0.2);
+      border-radius: 12px;
+      color: #d6e9ff;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 0 20px rgba(79,195,247,0.4); }
+    .card img { border-radius: 50%; object-fit: cover; box-shadow: 0 0 5px rgba(79,195,247,0.5); }
+    .card-text { color: #cfd8dc; font-size: 0.95rem; line-height: 1.4em; }
+
+    /* 响应式列数 */
+    @media (max-width: 992px) { .masonry { column-count: 2; } }
+    @media (max-width: 576px) { .masonry { column-count: 1; } }
+
+    /* 按钮 */
+    .toggle-btn {
+      border: 2px solid #4fc3f7;
+      background: transparent;
+      color: #4fc3f7;
+      border-radius: 25px;
+      padding: 8px 20px;
+      margin: 5px;
+      transition: 0.3s;
+    }
+    .toggle-btn.active, .toggle-btn:hover {
+      background-color: #4fc3f7;
+      color: #0d0d16;
+      box-shadow: 0 0 15px #4fc3f7;
+    }
+
+    /* 词云 */
+    .wordcloud {
+      max-width: 100%;
+      border-radius: 10px;
+      box-shadow: 0 0 30px rgba(79,195,247,0.6);
+      transition: 0.3s;
+    }
+    .wordcloud:hover { transform: scale(1.03); }
+
+  </style>
+</head>
+<body>
+<div class="container py-5">
+  <!-- ===== 页面标题 ===== -->
+  <h1 class="text-center mb-5">🎮 Steam 游戏评论雷达</h1>
+
+  <!-- ===== 搜索框 ===== -->
+  <form method="POST" class="mb-4 text-center">
+    <div class="input-group w-50 mx-auto">
+      <input type="text" class="form-control bg-dark text-light border-0" placeholder="请输入游戏名称..." name="game_name" required>
+      <button type="submit" class="btn btn-primary">开始分析</button>
+    </div>
+  </form>
+
+  <!-- ===== 错误提示 ===== -->
+  {% if error %}
+    <div class="alert alert-danger text-center">{{ error }}</div>
+  {% endif %}
+
+  <!-- ===== 游戏信息卡 ===== -->
+  {% if game_info %}
+  <div class="info-card row">
+    <div class="col-md-4 text-center">
+      <img src="{{ game_info.header_image }}" alt="封面" class="game-cover" width="280">
+    </div>
+    <div class="col-md-8">
+      <h3>{{ game_info.name }}</h3>
+      <p><strong>发行日期：</strong>{{ game_info.release_date }}</p>
+      <p><strong>价格：</strong>{{ game_info.price }}</p>
+      <p><strong>开发商：</strong>{{ game_info.developer }}</p>
+      <p><strong>发行商：</strong>{{ game_info.publisher }}</p>
+      <p><strong>简介：</strong>{{ game_info.short_description }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ===== 好评 / 差评切换按钮 ===== -->
+  {% if game_name %}
+  <div class="text-center mb-4">
+    <form method="POST" style="display:inline;">
+      <input type="hidden" name="game_name" value="{{ game_name }}">
+      <input type="hidden" name="review_type" value="positive">
+      <button type="submit" class="toggle-btn {% if review_type=='positive' %}active{% endif %}">👍 查看好评</button>
+    </form>
+    <form method="POST" style="display:inline;">
+      <input type="hidden" name="game_name" value="{{ game_name }}">
+      <input type="hidden" name="review_type" value="negative">
+      <button type="submit" class="toggle-btn {% if review_type=='negative' %}active{% endif %}">👎 查看差评</button>
+    </form>
+  </div>
+
+  <!-- ===== 词云 ===== -->
+  <div class="text-center mb-5">
+    <h4>{{ review_label }}词云</h4>
+    <img src="{{ wordcloud_path }}" alt="词云" class="wordcloud mt-3">
+  </div>
+
+  <!-- ===== Masonry 评论区 ===== -->
+  <div class="masonry">
+    {% for i, row in reviews.iterrows() %}
+    <div class="masonry-item">
+      <div class="card mb-2 p-2 comment-card"
+           data-steamid="{{ row['author_name'] }}"
+           data-appid="{{ row['appid'] }}"
+           data-content="{{ row['content'] }}">
+        <div>
+          <span class="badge bg-primary">{{ "👍好评" if row['voted_up'] else "👎差评" }}</span>
+        </div>
+        <p class="card-text">
+          {{ row['content'][:100] }}{% if row['content']|length > 100 %}...{% endif %}
+        </p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- ===== 评论详情弹窗 ===== -->
+<div class="modal fade" id="commentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalAuthor">评论者</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body d-flex">
+        <img id="modalAvatar" src="" class="rounded-circle me-3" width="80" height="80">
+        <p id="modalContent" class="mt-2"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== JS ===== -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+$(document).ready(function(){
+    $(document).on("click", ".comment-card", function(){
+        var steamid = $(this).data("steamid");
+        var appid = $(this).data("appid");
+        var content_full = $(this).data("content");
+        console.log("请求 URL:", `/comment_detail/${steamid}/${appid}`);
+
+        // AJAX 调用后端接口获取昵称和头像
+        $.getJSON(`/comment_detail/${steamid}/${appid}`, function(data){
+            $("#modalAuthor").text(data.nickname);
+            $("#modalAvatar").attr("src", data.avatar);
+            $("#modalContent").text(content_full);
+
+            // 使用 Bootstrap 5 API 显示 Modal
+            var myModal = new bootstrap.Modal(document.getElementById('commentModal'));
+            myModal.show();
+        });
+    });
+});
+
+</script>
+
+
+</body>
+</html>
