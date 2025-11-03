@@ -3,6 +3,13 @@ import os
 from src.crawler.steam_api_crawler import fetch_game_reviews, get_appid_by_name
 from wordcloud import WordCloud
 import pandas as pd
+import requests
+from flask import jsonify
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+API_KEY = os.getenv("STEAM_API_KEY")
 
 app = Flask(__name__)
 
@@ -59,10 +66,25 @@ def index():
 
     return render_template("index.html")
 
-@app.route("/comment_detail/<steamid>/<appid>", methods=["GET"])
+# ===== 评论详情接口 =====
+@app.route("/comment_detail/<steamid>/<appid>")
 def comment_detail(steamid, appid):
-    author_info = fetch_author_info(steamid)
-    return jsonify(author_info)
+    """返回评论者昵称和头像"""
+    try:
+        # 调用 Steam 用户信息接口
+        url = f"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={API_KEY}&steamids={steamid}"
+        res = requests.get(url)
+        data = res.json()["response"]["players"][0]
+        return jsonify({
+            "nickname": data.get("personaname", "匿名用户"),
+            "avatar": data.get("avatarfull", "/static/default_avatar.png")
+        })
+    except Exception as e:
+        print("❌ 获取评论者信息失败:", e)
+        return jsonify({
+            "nickname": "未知用户",
+            "avatar": "/static/default_avatar.png"
+        })
 
 
 if __name__ == "__main__":
