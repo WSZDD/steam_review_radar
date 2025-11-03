@@ -6,4 +6,4 @@ jieba
 langdetect
 wordcloud
 matplotlib
-streamlit
+

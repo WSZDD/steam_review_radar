@@ -13,4 +13,4 @@
 ## 启动方法
 ```bash
 pip install -r requirements.txt
-streamlit run dashboard/app.py
+python app.py
