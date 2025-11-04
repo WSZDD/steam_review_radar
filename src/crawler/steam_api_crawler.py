@@ -1,6 +1,5 @@
 import requests
 import pandas as pd
-import time
 
 import requests
 import pandas as pd

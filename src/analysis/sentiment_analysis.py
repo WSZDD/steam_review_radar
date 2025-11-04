@@ -1,31 +1,25 @@
-# analysis/sentiment_analysis.py
-from snownlp import SnowNLP
-import pandas as pd
+# sentiment.py
+from paddlenlp import Taskflow
 
-def analyze_sentiment(df):
+# 初始化中文情感分析模型
+senta = Taskflow("sentiment_analysis")
+
+def analyze_sentiment(text):
     """
-    输入: 评论DataFrame，必须包含 'content' 列
-    输出: 添加情感分析列 ['sentiment_score', 'sentiment_label']
+    输入：一段中文文本
+    输出：情感标签（'positive' 或 'negative'）和置信度
     """
-    def sentiment_score(text):
-        try:
-            s = SnowNLP(text)
-            return s.sentiments
-        except:
-            return 0.5  # 失败时中性
+    result = senta(text)[0]
+    return result['label'], result['score']
 
-    df['sentiment_score'] = df['content'].apply(sentiment_score)
-
-    def label(score):
-        if score > 0.6:
-            return '正向'
-        elif score < 0.4:
-            return '负向'
-        else:
-            return '中性'
-
-    df['sentiment_label'] = df['sentiment_score'].apply(label)
-
-    sentiment_summary = df['sentiment_label'].value_counts().to_dict()
-
-    return df, sentiment_summary
+# 统计情感数据并返回，以生成统计图
+def sentiment_statistics(reviews):
+    """
+    输入：包含评论文本的列表
+    输出：情感统计数据字典
+    """
+    stats = {'positive': 0, 'negative': 0}
+    for review in reviews:
+        label, _ = analyze_sentiment(review)
+        stats[label] += 1
+    return stats
