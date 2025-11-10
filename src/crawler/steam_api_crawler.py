@@ -1,15 +1,24 @@
 import requests
 import pandas as pd
+from src.analysis.sentiment_analysis import SentimentAnalyzer
+analyzer = SentimentAnalyzer()
 
-import requests
-import pandas as pd
-
-def fetch_game_reviews(appid, language="schinese", num_reviews=50):
+def fetch_game_reviews(appid, language="schinese", num_reviews=50, review_type="all"):
     """
     获取 Steam 游戏评论，返回 DataFrame 包含：
     author_name、author_avatar、content、voted_up
     """
-    url = f"https://store.steampowered.com/appreviews/{appid}?json=1&language={language}&num_per_page={num_reviews}&purchase_type=all"
+    url = (
+        f"https://store.steampowered.com/appreviews/{appid}"
+        f"?json=1"
+        f"&language={language}"
+        f"&filter=all"                     # ✅ 按“有帮助度”排序
+        f"&review_type={review_type}"
+        f"&day_range=9223372036854775807"  # ✅ 全时间范围
+        f"&num_per_page={num_reviews}"
+        f"&cursor=*"
+    )
+    print(url)
     res = requests.get(url)
     data = res.json()
     reviews = data.get("reviews", [])
@@ -26,7 +35,8 @@ def fetch_game_reviews(appid, language="schinese", num_reviews=50):
         "appid": appid  # 添加游戏 appid
     } for r in reviews])
 
-
+    df["sentiment_score"] = df["content"].apply(analyzer.get_sentiment_score)
+    df["sentiment_label"] = df["sentiment_score"].apply(analyzer.get_sentiment_label)
     return df
 
 
@@ -37,6 +47,7 @@ def get_appid_by_name(game_name):
     search_url = "https://store.steampowered.com/api/storesearch"
     params = {"term": game_name, "l": "schinese", "cc": "CN"}
     res = requests.get(search_url, params=params)
+
     data = res.json()
 
     if not data.get("items"):

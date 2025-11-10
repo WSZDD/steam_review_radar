@@ -1,25 +1,33 @@
-# sentiment.py
-from paddlenlp import Taskflow
+# src/analyzer/sentiment_analysis.py
+import re
+from snownlp import SnowNLP
 
-# 初始化中文情感分析模型
-senta = Taskflow("sentiment_analysis")
+class SentimentAnalyzer:
 
-def analyze_sentiment(text):
-    """
-    输入：一段中文文本
-    输出：情感标签（'positive' 或 'negative'）和置信度
-    """
-    result = senta(text)[0]
-    return result['label'], result['score']
 
-# 统计情感数据并返回，以生成统计图
-def sentiment_statistics(reviews):
-    """
-    输入：包含评论文本的列表
-    输出：情感统计数据字典
-    """
-    stats = {'positive': 0, 'negative': 0}
-    for review in reviews:
-        label, _ = analyze_sentiment(review)
-        stats[label] += 1
-    return stats
+    def preprocess(self, text: str) -> str:
+        """清理文本"""
+        text = re.sub(r"http\S+", "", text)      # 去掉URL
+        text = re.sub(r"<.*?>", "", text)        # 去掉HTML标签
+        text = re.sub(r"\s+", " ", text).strip() # 去掉多余空格
+        return text
+
+
+
+    def get_sentiment_score(self, text: str) -> float:
+        """返回统一到0~1的情感分数"""
+        text = self.preprocess(text)
+        if not text:
+            return 0.5  # 空评论视为中性
+        score = SnowNLP(text).sentiments  # 0~1
+
+        return score
+
+    def get_sentiment_label(self, score: float) -> str:
+        """根据分数分类"""
+        if score >= 0.6:
+            return "positive"
+        elif score <= 0.4:
+            return "negative"
+        else:
+            return "neutral"
