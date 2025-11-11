@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🎮 Steam 游戏评论雷达</title>
 
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fastly.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-  <!-- 自定义 CSS -->
   <style>
     /* ===== 页面整体 ===== */
     body {
@@ -55,7 +53,18 @@
     .card:hover { transform: translateY(-3px); box-shadow: 0 0 20px rgba(79,195,247,0.4); }
     .card img { border-radius: 50%; object-fit: cover; box-shadow: 0 0 5px rgba(79,195,247,0.5); }
     .card-text { color: #cfd8dc; font-size: 0.95rem; line-height: 1.4em; }
-
+    .card-footer-info {
+          font-size: 0.85rem;
+          color: #90a4ae; /* 浅灰色 */
+          display: flex;
+          justify-content: space-between; /* 两端对齐 */
+          border-top: 1px solid rgba(79,195,247,0.1); /* 细分隔线 */
+          padding-top: 8px;
+          margin-top: 10px;
+    }
+    .card-footer-info strong {
+        color: #b0bec5; /* 稍亮的标签颜色 */
+    }
     /* 响应式列数 */
     @media (max-width: 992px) { .masonry { column-count: 2; } }
     @media (max-width: 576px) { .masonry { column-count: 1; } }
@@ -84,28 +93,64 @@
       transition: 0.3s;
     }
     .wordcloud:hover { transform: scale(1.03); }
-
+    .topic-item {
+        background-color: #1a2430;
+        padding: 10px 15px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+    .topic-item strong {
+        color: #66c0f4; /* 关键词用蓝色 */
+        display: block;
+        font-size: 1.1em;
+    }
+    .topic-item p {
+        margin: 5px 0 0 0;
+        color: #c7d5e0; /* 摘要用亮灰色 */
+        font-style: italic;
+    }
+    .risk-assessment {
+    border-top: 2px solid #4fc3f7;
+    margin-top: 15px;
+    padding-top: 15px;
+    }
+    .risk-assessment h4 {
+        color: #ffffff; /* 覆盖 H4 默认的蓝色 */
+    }
+    .risk-assessment .risk-score {
+        font-weight: bold;
+        font-size: 1.2em;
+    }
+    /* 新增：定义不同的颜色类 */
+    .score-high {
+        color: #4CAF50; /* 绿色 (推荐) */
+    }
+    .score-mid {
+        color: #FFC107; /* 黄色 (褒贬不一) */
+    }
+    .score-low {
+        color: #F44336; /* 红色 (不推荐) */
+    }
+    .risk-assessment strong {
+        color: #4fc3f7;
+    }
   </style>
 </head>
 <body>
 <div class="container py-5">
-  <!-- ===== 页面标题 ===== -->
   <h1 class="text-center mb-5">🎮 Steam 游戏评论雷达</h1>
 
-  <!-- ===== 搜索框 ===== -->
   <form method="POST" class="mb-4 text-center">
     <div class="input-group w-50 mx-auto">
-      <input type="text" class="form-control bg-dark text-light border-0" placeholder="请输入游戏名称..." name="game_name" required>
+      <input type="text" class="form-control bg-dark text-light border-0" placeholder="请输入游戏名称..." name="game_name" required value="{{ game_name or '' }}">
       <button type="submit" class="btn btn-primary">开始分析</button>
     </div>
   </form>
 
-  <!-- ===== 错误提示 ===== -->
   {% if error %}
     <div class="alert alert-danger text-center">{{ error }}</div>
   {% endif %}
 
-  <!-- ===== 游戏信息卡 ===== -->
   {% if game_info %}
   <div class="info-card row">
     <div class="col-md-4 text-center">
@@ -119,11 +164,29 @@
       <p><strong>发行商：</strong>{{ game_info.publisher }}</p>
       <p><strong>简介：</strong>{{ game_info.short_description }}</p>
     </div>
+    {% if recommend_score is not none %}
+    <div class="risk-assessment">
+      <h4>游戏推荐指数: 
+          <span class="risk-score 
+              {% if recommend_score > 75 %}
+                  score-high
+              {% elif recommend_score > 50 %}
+                  score-mid
+              {% else %}
+                  score-low
+              {% endif %}
+          ">
+              {{ recommend_score }} / 100
+          </span>
+      </h4>
+      <p><strong>购买建议:</strong> {{ suggestion }}</p>
+    </div>
+    {% endif %}
+    </div>
   </div>
   {% endif %}
 
-  <!-- ===== 好评 / 差评切换按钮 ===== -->
-  {% if game_name %}
+  {% if game_info %}
   <div class="text-center mb-4">
     <form method="POST" style="display:inline;">
       <input type="hidden" name="game_name" value="{{ game_name }}">
@@ -135,15 +198,44 @@
       <input type="hidden" name="review_type" value="negative">
       <button type="submit" class="toggle-btn {% if review_type=='negative' %}active{% endif %}">👎 查看差评</button>
     </form>
+    <form method="POST" style="display:inline;">
+      <input type="hidden" name="game_name" value="{{ game_name }}">
+      <input type="hidden" name="force_update_button" value="true">
+      <button type="submit" class="toggle-btn">🔄 更新数据</button>
+    </form>
   </div>
 
-  <!-- ===== 词云 ===== -->
-  <div class="text-center mb-5">
-    <h4>{{ review_label }}词云</h4>
-    <img src="{{ wordcloud_path }}" alt="词云" class="wordcloud mt-3">
+  <div class="review-content">
+    <div class="wordcloud-container">
+      <h3>{{ review_label }} 交互式主题词云</h3>
+      <div id="wordcloud_chart" 
+           style="width: 100%; height: 450px; background-color: #2a3f5a;"
+           data-word-data='{{ word_data_json | safe }}'
+           data-topic-map='{{ topic_map_json | safe }}'>
+      </div>
+    </div>
+    <div class="analysis-container">
+      <div class="topics">
+          <h3>主要{{ review_label }}主题 (BERTopic 语义分析)</h3>
+          <ul>
+              {% if negative_topics %}
+                  {% for topic_id, info in negative_topics.items() %}
+                  <li class="topic-item">
+                      <strong>主题: {{ info.keywords }}</strong>
+                      <p>"{{ info.summary }}"</p>
+                  </li>
+                  {% endfor %}
+              {% else %}
+                  <li>未能提取到有效主题。</li>
+              {% endif %}
+          </ul>
+      </div>
+    </div>
+    <div class="review-list">
+      <h3>{{ review_label }}列表 (示例)</h3>
+    </div>
   </div>
 
-  <!-- ===== Masonry 评论区 ===== -->
   <div class="masonry">
     {% for i, row in reviews.iterrows() %}
     <div class="masonry-item">
@@ -156,11 +248,10 @@
             {{ "👍好评" if row['voted_up'] else "👎差评" }}
           </span>
 
-          <!-- 情感分析结果 -->
           <span class="badge 
-                {% if row['sentiment_label'] == 'positive' %}bg-success
-                {% elif row['sentiment_label'] == 'negative' %}bg-danger
-                {% else %}bg-secondary{% endif %}">
+              {% if row['sentiment_label'] == 'positive' %}bg-success
+              {% elif row['sentiment_label'] == 'negative' %}bg-danger
+              {% else %}bg-secondary{% endif %}">
             {{ "😊 正面" if row['sentiment_label']=="positive"
               else ("😐 中性" if row['sentiment_label']=="neutral" else "😡 负面") }}
             ({{ "%.2f"|format(row['sentiment_score']) }})
@@ -169,7 +260,17 @@
 
         <p class="card-text">
           {{ row['content'][:100] }}{% if row['content']|length > 100 %}...{% endif %}
-        </p>    
+        </p>
+
+        <div class="card-footer-info mt-2">
+          <span>
+            <strong>🕓 时长:</strong> 
+            {{ "%.1f"|format(row['playtime_at_review'] / 60) }} 小时
+          </span>
+          <span>
+            <strong>🗳️ 获赞:</strong> {{ row['votes_up'] }}
+          </span>
+        </div>  
       </div>
     </div>
     {% endfor %}
@@ -177,7 +278,6 @@
   {% endif %}
 </div>
 
-<!-- ===== 评论详情弹窗 ===== -->
 <div class="modal fade" id="commentModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content bg-dark text-light">
@@ -193,34 +293,11 @@
   </div>
 </div>
 
-<!-- ===== JS ===== -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-$(document).ready(function(){
-    $(document).on("click", ".comment-card", function(){
-        var steamid = $(this).data("steamid");
-        var appid = $(this).data("appid");
-        var content_full = $(this).data("content");
-        console.log("请求 URL:", `/comment_detail/${steamid}/${appid}`);
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <script src="https://fastly.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://fastly.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://fastly.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
 
-        // AJAX 调用后端接口获取昵称和头像
-        $.getJSON(`/comment_detail/${steamid}/${appid}`, function(data){
-            $("#modalAuthor").text(data.nickname);
-            $("#modalAvatar").attr("src", data.avatar);
-            $("#modalContent").text(content_full);
-
-            // 使用 Bootstrap 5 API 显示 Modal
-            var myModal = new bootstrap.Modal(document.getElementById('commentModal'));
-            myModal.show();
-        });
-    });
-});
-$("form").on("submit", function() {
-  $("body").append('<div id="loading" class="text-center mt-4">⏳ 加载中，请稍候...</div>');
-});
-</script>
-
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
 
 </body>
 </html>

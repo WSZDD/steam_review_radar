@@ -1,7 +1,11 @@
 import requests
 import pandas as pd
 from src.analysis.sentiment_analysis import SentimentAnalyzer
-analyzer = SentimentAnalyzer()
+try:
+    analyzer = SentimentAnalyzer()
+except Exception as e:
+    print(f"CRITICAL: 无法初始化 SentimentAnalyzer. {e}")
+    analyzer = None
 
 def fetch_game_reviews(appid, language="schinese", num_reviews=50, review_type="all"):
     """
@@ -18,6 +22,14 @@ def fetch_game_reviews(appid, language="schinese", num_reviews=50, review_type="
         f"&num_per_page={num_reviews}"
         f"&cursor=*"
     )
+    params_summary = (
+        f"https://store.steampowered.com/appreviews/{appid}"
+        f"?json=1"
+        f"&language=all"
+        f"&review_type=all"
+        f"&num_per_page=0"
+        f"&cursor=*"
+    )
     print(url)
     res = requests.get(url)
     data = res.json()
@@ -32,12 +44,36 @@ def fetch_game_reviews(appid, language="schinese", num_reviews=50, review_type="
         "author_avatar": r["author"].get("avatar", ""),  # 小头像URL
         "content": r.get("review", ""),
         "voted_up": r.get("voted_up", False),
-        "appid": appid  # 添加游戏 appid
+        "appid": appid,  # 添加游戏 appid
+        "playtime_at_review": r["author"].get("playtime_at_review", 0),
+        "votes_up": r.get("votes_up", 0)
     } for r in reviews])
 
-    df["sentiment_score"] = df["content"].apply(analyzer.get_sentiment_score)
-    df["sentiment_label"] = df["sentiment_score"].apply(analyzer.get_sentiment_label)
-    return df
+    if analyzer:
+        print("🤖 [Crawler] 正在对爬取内容进行情感分析...")
+        # 定义一个辅助函数
+        def analyze_row(content):
+            score, label = analyzer.analyze(content)
+            return pd.Series([score, label])
+        
+        # 使用 .apply 一次性获取两列
+        df[['sentiment_score', 'sentiment_label']] = df['content'].apply(analyze_row)
+        print("✅ [Crawler] 情感分析完成。")
+    else:
+        print("⚠️ [Crawler] 情感分析器未初始化，跳过分析。")
+        df['sentiment_score'] = 0.5
+        df['sentiment_label'] = 'neutral'
+
+    res_summary = requests.get(params_summary)
+    res_summary.raise_for_status()
+    summary_data = res_summary.json()
+    
+    summary = {} # 默认为空
+    if summary_data and summary_data.get("success") == 1:
+        # 这个 summary 将包含 total_positive 和 total_negative
+        summary = summary_data.get("query_summary", {})
+
+    return df, summary
 
 
 def get_appid_by_name(game_name):

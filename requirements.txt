@@ -1,9 +1,18 @@
-requests
+flask
 pandas
-snownlp
-vaderSentiment
-jieba
+requests
+python-dotenv
 langdetect
-wordcloud
-matplotlib
+bertopic
+jieba
+scikit-learn
+numpy
 
+
+sentence-transformers
+torch                
+umap-learn          
+hdbscan   
+transformers           
+protobuf
+sentencepiece
