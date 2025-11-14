@@ -1,5 +1,6 @@
 import requests
 import pandas as pd
+import numpy as np
 from src.analysis.sentiment_analysis import SentimentAnalyzer
 try:
     analyzer = SentimentAnalyzer()
@@ -46,7 +47,8 @@ def fetch_game_reviews(appid, language="schinese", num_reviews=50, review_type="
         "voted_up": r.get("voted_up", False),
         "appid": appid,  # 添加游戏 appid
         "playtime_at_review": r["author"].get("playtime_at_review", 0),
-        "votes_up": r.get("votes_up", 0)
+        "votes_up": r.get("votes_up", 0),
+        "timestamp_created": r.get("timestamp_created", 0)
     } for r in reviews])
 
     if analyzer:
@@ -110,3 +112,86 @@ def get_appid_by_name(game_name):
     }
 
     return appid, game_real_name, img_url, info
+
+# --- 【核心修改】替换这个函数 ---
+def fetch_data_for_timeseries(appid, max_pages=10):
+    """
+    专门为时序分析爬取大量（最多 1000 条）评论。
+    【已修改】按月统计好评数和差评数。
+    """
+    print(f"🔬 [TimeSeries] 开始为 {appid} 爬取时序数据 (最多 {max_pages} 页)...")
+    all_reviews_data = []
+    next_cursor = "*" 
+    
+    for page in range(max_pages):
+        if not next_cursor:
+            break 
+        
+        print(f"  ... 正在爬取时序数据第 {page+1}/{max_pages} 页")
+        
+        params = {
+            "json": 1,
+            "language": "all", 
+            "filter": "all",  # 按“有帮助”排序，获取全时间跨度
+            "day_range": "9223372036854775807",
+            "num_per_page": 1000,
+            "cursor": next_cursor 
+        }
+        
+        try:
+            res = requests.get(f"https://store.steampowered.com/appreviews/{appid}", params=params, timeout=10)
+            res.raise_for_status()
+            data = res.json()
+            
+            if data.get("success") != 1 or "reviews" not in data:
+                break
+                
+            for review in data["reviews"]:
+                # --- 【修改】不再需要情感分析 ---
+                all_reviews_data.append({
+                    "timestamp_created": review.get("timestamp_created", 0),
+                    "voted_up": review.get("voted_up", False) # 只需要好评/差评
+                })
+            
+            next_cursor = data.get("cursor") 
+            
+        except Exception as e:
+            print(f"❌ [TimeSeries] 爬取分页时出错: {e}")
+            break
+    
+    print(f"✅ [TimeSeries] 爬取完毕，共 {len(all_reviews_data)} 条评论。")
+    
+    if not all_reviews_data:
+        return {} # 返回空字典
+
+    # --- 【核心修改】使用 Pandas 进行高级分组统计 ---
+    df_time = pd.DataFrame(all_reviews_data)
+    df_time['timestamp'] = pd.to_datetime(df_time['timestamp_created'], unit='s')
+    df_time = df_time.set_index('timestamp')
+
+    # 1. 按 'voted_up' (True/False) 分组
+    # 2. 按月 ('M') 重采样
+    # 3. 统计每组的数量 (.size())
+    # 4. 将 'voted_up' (True/False) 作为列展开 (.unstack())
+    counts_over_time = df_time.groupby('voted_up').resample('M').size().unstack(level=0, fill_value=0)
+    
+    # 5. 重命名列
+    counts_over_time = counts_over_time.rename(columns={True: 'positive', False: 'negative'})
+    
+    # 6. 确保两列都存在
+    if 'positive' not in counts_over_time:
+        counts_over_time['positive'] = 0
+    if 'negative' not in counts_over_time:
+        counts_over_time['negative'] = 0
+
+    # 7. 排序
+    counts_over_time = counts_over_time.sort_index()
+
+    # 8. 格式化为 ECharts 需要的数据结构
+    time_series_data = {
+        'dates': [date.strftime('%Y-%m') for date in counts_over_time.index],
+        'positive_counts': counts_over_time['positive'].tolist(),
+        'negative_counts': counts_over_time['negative'].tolist()
+    }
+    return time_series_data
+# --- 【替换结束】 ---

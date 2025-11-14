@@ -109,6 +109,20 @@
         color: #c7d5e0; /* 摘要用亮灰色 */
         font-style: italic;
     }
+    .timeseries-container {
+        margin-top: 20px;
+        background-color: #2a3f5a;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #4fc3f7;
+    }
+    .scatter-container {
+        margin-top: 20px;
+        background-color: #2a3f5a;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #4fc3f7;
+    }
     .risk-assessment {
     border-top: 2px solid #4fc3f7;
     margin-top: 15px;
@@ -229,6 +243,20 @@
                   <li>未能提取到有效主题。</li>
               {% endif %}
           </ul>
+      </div>
+      <div class="timeseries-container">
+        <h4>情感随时间变化</h4>
+        <div id="time_series_chart" 
+             style="width: 100%; height: 300px;"
+             data-time-series='{{ time_series_json | safe }}'>
+        </div>
+      </div>
+      <div class="scatter-container">
+        <h4>游戏时长 vs 情感倾向</h4>
+        <div id="scatter_chart" 
+             style="width: 100%; height: 300px;"
+             data-scatter='{{ scatter_json | safe }}'>
+        </div>
       </div>
     </div>
     <div class="review-list">
