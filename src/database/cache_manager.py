@@ -20,7 +20,8 @@ def _init_db():
         appid INTEGER PRIMARY KEY,
         last_updated TIMESTAMP,
         total_positive INTEGER,
-        total_negative INTEGER
+        total_negative INTEGER,
+        review_score_desc TEXT  
     )
     """)
     conn.commit()
@@ -65,7 +66,11 @@ def get_reviews_with_cache(appid, game_real_name, force_update=False):
             cursor.execute("SELECT total_positive, total_negative FROM metadata WHERE appid = ?", (appid,))
             summary_data = cursor.fetchone()
             if summary_data:
-                summary = {'total_positive': summary_data[0], 'total_negative': summary_data[1]}
+                summary = {
+                    'total_positive': summary_data[0], 
+                    'total_negative': summary_data[1],
+                    'review_score_desc': summary_data[2]
+                }
             # --- 修复结束 ---
 
             conn.close()
@@ -103,10 +108,11 @@ def get_reviews_with_cache(appid, game_real_name, force_update=False):
         cursor = conn.cursor()
         total_pos = summary.get('total_positive', 0)
         total_neg = summary.get('total_negative', 0)
+        score_desc = summary.get('review_score_desc', '无评分')
         cursor.execute("""
-            REPLACE INTO metadata (appid, last_updated, total_positive, total_negative) 
-            VALUES (?, ?, ?, ?)
-        """, (appid, datetime.now().isoformat(), total_pos, total_neg))
+            REPLACE INTO metadata (appid, last_updated, total_positive, total_negative, review_score_desc) 
+            VALUES (?, ?, ?, ?, ?)
+        """, (appid, datetime.now().isoformat(), total_pos, total_neg, score_desc))
         
         conn.commit()
         print(f"💾 [Cache WRITE] 成功将 {len(df)} 条评论和摘要写入数据库。")

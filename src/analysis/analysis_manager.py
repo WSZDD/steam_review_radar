@@ -1,8 +1,6 @@
 import os
 import json
 import pandas as pd
-import numpy as np
-# 导入需要调用的分析函数
 from src.analysis.topic_modeler import analyze_with_bertopic
 from src.analysis.risk_model import calculate_recommend_score
 from src.crawler.steam_api_crawler import fetch_data_for_timeseries # 导入我们刚移动的函数
@@ -22,11 +20,11 @@ def get_analysis_results(appid, df, game_info, review_summary, is_fresh_fetch, r
     pos_topics_cache_file = os.path.join(ANALYSIS_CACHE_DIR, f"{appid}_pos_topics.json")
     neg_topics_cache_file = os.path.join(ANALYSIS_CACHE_DIR, f"{appid}_neg_topics.json")
     time_series_cache_file = os.path.join(ANALYSIS_CACHE_DIR, f"{appid}_timeseries.json")
-    scatter_cache_file = os.path.join(ANALYSIS_CACHE_DIR, f"{appid}_scatter.json")
+    radar_cache_file = os.path.join(ANALYSIS_CACHE_DIR, f"{appid}_radar.json")
 
     # --- 2. 检查是否需要重新计算 ---
     # （如果数据是新爬取的，或者任何一个缓存文件丢失了）
-    if is_fresh_fetch or not all(os.path.exists(f) for f in [score_cache_file, pos_topics_cache_file, neg_topics_cache_file, time_series_cache_file, scatter_cache_file]):
+    if is_fresh_fetch or not all(os.path.exists(f) for f in [score_cache_file, pos_topics_cache_file, neg_topics_cache_file, time_series_cache_file, radar_cache_file]):
         
         print(f"♻️ [AnalysisManager] 缓存丢失或数据已更新。正在运行 *所有* 分析...")
         
@@ -52,45 +50,52 @@ def get_analysis_results(appid, df, game_info, review_summary, is_fresh_fetch, r
         with open(score_cache_file, 'w', encoding='utf-8') as f:
             json.dump({"score": recommend_score, "suggestion": suggestion}, f)
 
-        # D: 情感时序分析 (调用独立爬虫)
-        print("  ... 正在分析 [情感时序]...")
+        # D: 好差评时序分析 (调用独立爬虫)
+        print("  ... 正在分析 [好差评时序]...")
         try:
             time_series_data = fetch_data_for_timeseries(appid) 
             with open(time_series_cache_file, 'w', encoding='utf-8') as f:
                 json.dump(time_series_data, f)
         except Exception as e:
-            print(f"❌ [AnalysisManager] 情感时序分析失败: {e}")
+            print(f"❌ [AnalysisManager] 好差评时序分析失败: {e}")
         
-        print("  ... 正在分析 [时长与情感]...")
-        try:
-            scatter_data = {'positive': [], 'negative': []}
-            # (df 是包含所有评论的完整 DataFrame)
-            
-            # 我们最多只绘制 500 个点，防止浏览器卡顿
-            df_sample = df.sample(n=min(len(df), 500)) 
-            
-            for _, row in df_sample.iterrows():
-                # 将分钟转为小时
-                playtime_hours = row['playtime_at_review'] / 60.0
-                
-                # 使用对数转换 (log(x+1)) 来压缩 X 轴
-                log_playtime = np.log1p(playtime_hours) 
-                
-                score = row['sentiment_score']
-                
-                # data 格式: [x轴, y轴, 附加信息(用于tooltip)]
-                point_data = [log_playtime, score, round(playtime_hours, 1)] 
-                
-                if row['voted_up']:
-                    scatter_data['positive'].append(point_data)
+        print("  ... 正在计算 [情感雷达]...")
+        radar_dimensions = {
+            "score_gameplay": "玩法性",
+            "score_visuals": "画面/音乐",
+            "score_story": "剧情叙事",
+            "score_opt": "优化/联机",
+            "score_value": "性价比"
+        }
+        
+        radar_values = []
+        indicator_config = []
+        
+        # 计算所有评论在每个维度上的平均分
+        if not positive_reviews.empty:
+            for col, name in radar_dimensions.items():
+                if col in positive_reviews.columns:
+                    # 乘以 100 转换为百分制
+                    avg_score = positive_reviews[col].mean() * 100
+                    radar_values.append(round(avg_score, 1))
                 else:
-                    scatter_data['negative'].append(point_data)
+                    radar_values.append(0) # 列不存在
+                indicator_config.append({"name": name, "max": 100})
+        else:
+            # 如果没有好评，返回一个全 0 的雷达图
+            print("⚠️ [AnalysisManager] 雷达图计算：未找到好评，返回 0 值。")
+            for col, name in radar_dimensions.items():
+                radar_values.append(0)
+                indicator_config.append({"name": name, "max": 100})
             
-            # 存入缓存
-            with open(scatter_cache_file, 'w', encoding='utf-8') as f:
-                json.dump(scatter_data, f)
-        except Exception as e:
-            print(f"❌ [AnalysisManager] 散点图分析失败: {e}")
+        radar_data = {
+            "indicator": indicator_config,
+            "value": radar_values
+        }
+        
+        with open(radar_cache_file, 'w', encoding='utf-8') as f:
+            json.dump(radar_data, f)
+
 
         print("✅ [AnalysisManager] 所有分析完成并已缓存。")
 
@@ -123,10 +128,9 @@ def get_analysis_results(appid, df, game_info, review_summary, is_fresh_fetch, r
         with open(time_series_cache_file, 'r', encoding='utf-8') as f:
             results["time_series_json"] = json.dumps(json.load(f))
 
-        # --- E: 加载散点图数据 ---
-        with open(scatter_cache_file, 'r', encoding='utf-8') as f:
-            # 同样转换为 JSON 字符串
-            results["scatter_json"] = json.dumps(json.load(f))
+        # 加载雷达图数据
+        with open(radar_cache_file, 'r', encoding='utf-8') as f:
+            results["radar_json"] = json.dumps(json.load(f))
 
     except Exception as e:
         print(f"❌ [AnalysisManager] 从缓存加载分析结果时失败: {e}")

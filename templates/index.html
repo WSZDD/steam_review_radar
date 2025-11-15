@@ -192,6 +192,10 @@
           ">
               {{ recommend_score }} / 100
           </span>
+          <span style="margin-left: 20px; font-size: 0.9em;">
+              Steam 评价: 
+              <strong style="color: #66c0f4;">{{ game_rating_desc }}</strong>
+          </span>
       </h4>
       <p><strong>购买建议:</strong> {{ suggestion }}</p>
     </div>
@@ -245,17 +249,17 @@
           </ul>
       </div>
       <div class="timeseries-container">
-        <h4>情感随时间变化</h4>
+        <h4>好差评随时间变化</h4>
         <div id="time_series_chart" 
              style="width: 100%; height: 300px;"
              data-time-series='{{ time_series_json | safe }}'>
         </div>
       </div>
-      <div class="scatter-container">
-        <h4>游戏时长 vs 情感倾向</h4>
-        <div id="scatter_chart" 
+      <div class="radar-container" style="margin-top: 20px; background-color: #2a3f5a; padding: 10px; border-radius: 10px; border: 1px solid #4fc3f7;">
+        <h4>多维情感雷达</h4>
+        <div id="radarChart" 
              style="width: 100%; height: 300px;"
-             data-scatter='{{ scatter_json | safe }}'>
+             data-radar='{{ radar_json | safe }}'>
         </div>
       </div>
     </div>
@@ -274,15 +278,6 @@
         <div class="d-flex justify-content-between align-items-center mb-1">
           <span class="badge bg-primary">
             {{ "👍好评" if row['voted_up'] else "👎差评" }}
-          </span>
-
-          <span class="badge 
-              {% if row['sentiment_label'] == 'positive' %}bg-success
-              {% elif row['sentiment_label'] == 'negative' %}bg-danger
-              {% else %}bg-secondary{% endif %}">
-            {{ "😊 正面" if row['sentiment_label']=="positive"
-              else ("😐 中性" if row['sentiment_label']=="neutral" else "😡 负面") }}
-            ({{ "%.2f"|format(row['sentiment_score']) }})
           </span>
         </div>
 

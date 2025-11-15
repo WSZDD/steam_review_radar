@@ -199,73 +199,74 @@ $(document).ready(function(){
         }
     }
 
-    const scatterDom = document.getElementById('scatter_chart');
-    if (scatterDom) {
-        const scatterData = JSON.parse(scatterDom.dataset.scatter);
+    const radarDom = document.getElementById('radarChart');
+    if (radarDom) {
+        try {
+            // 假设你在 index.html 中是这样传递数据的:
+            // <div id="radarChart" data-radar="{{ radar_json | safe }}"></div>
+            const radarData = JSON.parse(radarDom.dataset.radar);
 
-        // 检查数据结构是否有效
-        if (scatterData && scatterData.positive && scatterData.negative) {
-            const scatterChart = echarts.init(scatterDom);
-            const option = {
-                tooltip: {
-                    trigger: 'item',
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    borderColor: '#66c0f4',
-                    textStyle: { color: '#fff' },
-                    // params.data 格式: [log_playtime, sentiment_score, original_playtime_hours]
-                    formatter: function (params) {
-                        return `${params.marker} ${params.seriesName}<br/>` +
-                               `<strong>游戏时长:</strong> ${params.data[2]} 小时<br/>` +
-                               `<strong>情感得分:</strong> ${params.data[1].toFixed(2)}`;
-                    }
-                },
-                legend: {
-                    data: ['好评', '差评'],
-                    textStyle: { color: '#e0e0e0' }
-                },
-                grid: {
-                    left: '3%', right: '4%', bottom: '3%', containLabel: true
-                },
-                xAxis: {
-                    type: 'value',
-                    name: '游戏时长 (对数刻度)',
-                    axisLine: { lineStyle: { color: '#8392A5' } },
-                    splitLine: { show: false }, // X 轴不用分隔线
-                    // X 轴刻度标签格式化 (可选，但很酷)
-                    axisLabel: {
-                        formatter: function (value) {
-                            // 将 log(x+1) 转换回 x (e^value - 1)
-                            return `${(Math.exp(value) - 1).toFixed(0)}h`;
-                        }
-                    }
-                },
-                yAxis: {
-                    type: 'value',
-                    name: '情感得分 (0=差, 1=好)',
-                    min: 0.0,
-                    max: 1.0,
-                    axisLine: { lineStyle: { color: '#8392A5' } },
-                    splitLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
-                },
-                series: [
-                    {
-                        name: '好评',
-                        type: 'scatter',
-                        data: scatterData.positive,
-                        itemStyle: { color: 'rgba(76, 175, 80, 0.5)' } // 半透明绿色
+            // 检查数据是否有效
+            if (radarData && radarData.indicator && radarData.value) {
+                const radarChart = echarts.init(radarDom);
+                const radarOption = {
+                    tooltip: {
+                        trigger: 'item'
                     },
-                    {
-                        name: '差评',
-                        type: 'scatter',
-                        data: scatterData.negative,
-                        itemStyle: { color: 'rgba(244, 67, 54, 0.5)' } // 半透明红色
-                    }
-                ]
-            };
-            scatterChart.setOption(option);
-            $(window).on('resize', function () {
-                scatterChart.resize();
-            });
+                    radar: {
+                        shape: 'circle', 
+                        indicator: radarData.indicator, // 使用后端传来的维度定义
+                        axisName: {
+                            color: '#ccc',
+                            fontSize: 12
+                        },
+                        splitArea: {
+                            areaStyle: {
+                                color: ['rgba(50, 50, 50, 0.2)', 'rgba(40, 40, 40, 0.2)'],
+                                shadowColor: 'rgba(0, 0, 0, 0.2)',
+                                shadowBlur: 10
+                            }
+                        },
+                        splitLine: {
+                            lineStyle: {
+                                color: 'rgba(100, 100, 100, 0.5)'
+                            }
+                        }
+                    },
+                    series: [
+                        {
+                            name: '游戏维度分析',
+                            type: 'radar',
+                            data: [
+                                {
+                                    value: radarData.value, // 使用后端计算的平均分
+                                    name: '游戏维度分析',
+                                    areaStyle: {
+                                        color: new echarts.graphic.RadialGradient(0.5, 0.5, 0.5, [
+                                            { offset: 0, color: 'rgba(0, 255, 255, 0.5)' },
+                                            { offset: 1, color: 'rgba(0, 128, 128, 0.2)' }
+                                        ])
+                                    },
+                                    lineStyle: {
+                                        color: 'rgba(0, 255, 255, 0.8)'
+                                    },
+                                    itemStyle: {
+                                        color: 'rgba(0, 255, 255, 1)'
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                };
+                radarChart.setOption(radarOption);
+                
+                // 响应式调整
+                $(window).on('resize', function () {
+                    radarChart.resize();
+                });
+            }
+        } catch (e) {
+            console.error("雷达图 ECharts 渲染失败:", e);
         }
     }
 });

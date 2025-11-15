@@ -30,13 +30,14 @@ def index():
     negative_count = 0
     review_label = "评论"
     error = None
+    game_rating_desc = None
     
     # 分析结果的默认值
     analysis_results = {
         "recommend_score": None, "suggestion": None,
         "word_data_json": "[]", "topic_map_json": "{}",
         "negative_topics": {}, "time_series_json": "{}",
-        "scatter_json": "{}"
+        "radar_json": "{}"
     }
 
     if request.method == "POST":
@@ -65,6 +66,7 @@ def index():
                 review_label = "好评" if review_type == "positive" else "差评"
                 reviews_to_analyze = positive_reviews if review_type == "positive" else negative_reviews
                 reviews = reviews_to_analyze # 用于 Masonry 布局
+                game_rating_desc = review_summary.get('review_score_desc', '无评分')
                 
                 # --- 3. 【核心修改】调用分析管理器 ---
                 analysis_results = get_analysis_results(
@@ -84,7 +86,7 @@ def index():
         positive_count=positive_count,
         negative_count=negative_count,
         error=error,
-        
+        game_rating_desc=game_rating_desc,
         # --- 使用字典解包传递所有分析结果 ---
         **analysis_results
     )
@@ -108,4 +110,4 @@ def comment_detail(steamid, appid):
         })
 
 if __name__ == "__main__":
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=True,)

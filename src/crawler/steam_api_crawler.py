@@ -31,49 +31,52 @@ def fetch_game_reviews(appid, language="schinese", num_reviews=50, review_type="
         f"&num_per_page=0"
         f"&cursor=*"
     )
-    print(url)
+    print(f"🕷️ [Crawler] Fetching: {url}")
     res = requests.get(url)
     data = res.json()
     reviews = data.get("reviews", [])
 
-    # 检查是否获取到评论
     if not reviews:
-        return pd.DataFrame(columns=["author_name", "author_avatar", "content", "voted_up"])
+        # 返回包含新列的空 DataFrame
+        cols = ["author_name", "author_avatar", "content", "voted_up", 
+                "score_gameplay", "score_visuals", "score_story", "score_opt", "score_value"]
+        return pd.DataFrame(columns=cols), {}
 
+    # 1. 构造基础 DataFrame
     df = pd.DataFrame([{
         "author_name": r["author"].get("steamid", "匿名"),
-        "author_avatar": r["author"].get("avatar", ""),  # 小头像URL
+        "author_avatar": r["author"].get("avatar", ""),
         "content": r.get("review", ""),
         "voted_up": r.get("voted_up", False),
-        "appid": appid,  # 添加游戏 appid
+        "appid": appid,
         "playtime_at_review": r["author"].get("playtime_at_review", 0),
         "votes_up": r.get("votes_up", 0),
         "timestamp_created": r.get("timestamp_created", 0)
     } for r in reviews])
 
+    # 2. 执行多维情感分析
     if analyzer:
-        print("🤖 [Crawler] 正在对爬取内容进行情感分析...")
-        # 定义一个辅助函数
-        def analyze_row(content):
-            score, label = analyzer.analyze(content)
-            return pd.Series([score, label])
+        print(f"🤖 [Crawler] 正在对 {len(df)} 条评论进行多维雷达分析...")
         
-        # 使用 .apply 一次性获取两列
-        df[['sentiment_score', 'sentiment_label']] = df['content'].apply(analyze_row)
-        print("✅ [Crawler] 情感分析完成。")
+        score_dicts = analyzer.analyze_batch(df['content'])
+        
+        # 转换为 DataFrame 并合并
+        df_scores = pd.DataFrame(score_dicts)
+        df = pd.concat([df, df_scores], axis=1)
+        
+        print("✅ [Crawler] 多维分析完成。")
     else:
-        print("⚠️ [Crawler] 情感分析器未初始化，跳过分析。")
-        df['sentiment_score'] = 0.5
-        df['sentiment_label'] = 'neutral'
+        # 填充默认值
+        for col in ["score_gameplay", "score_visuals", "score_story", "score_opt", "score_value"]:
+            df[col] = 0.5
 
+    # ... (Summary 获取部分保持不变) ...
     res_summary = requests.get(params_summary)
-    res_summary.raise_for_status()
-    summary_data = res_summary.json()
-    
-    summary = {} # 默认为空
-    if summary_data and summary_data.get("success") == 1:
-        # 这个 summary 将包含 total_positive 和 total_negative
-        summary = summary_data.get("query_summary", {})
+    summary = {}
+    if res_summary.status_code == 200:
+        summary_data = res_summary.json()
+        if summary_data.get("success") == 1:
+            summary = summary_data.get("query_summary", {})
 
     return df, summary
 
