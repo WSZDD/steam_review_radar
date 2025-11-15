@@ -49,12 +49,12 @@
       color: #d6e9ff;
       transition: all 0.3s;
     }
+    .comment-card {
+        cursor: pointer;
+    }
     .comment-card:hover { 
         transform: translateY(-3px); 
         box-shadow: 0 0 20px rgba(79,195,247,0.4); 
-    }
-    .comment-card {
-        cursor: pointer;
     }
 
     .card img { border-radius: 50%; object-fit: cover; box-shadow: 0 0 5px rgba(79,195,247,0.5); }
@@ -71,7 +71,6 @@
     .card-footer-info strong {
         color: #b0bec5;
     }
-    /* 响应式列数 */
     @media (max-width: 992px) { .masonry { column-count: 2; } }
     @media (max-width: 576px) { .masonry { column-count: 1; } }
 
@@ -108,26 +107,65 @@
         font-style: italic;
     }
 
+    /* 风险评估 (保持不变) */
     .risk-assessment {
-    border-top: 2px solid #4fc3f7;
-    margin-top: 15px;
-    padding-top: 15px;
+        border-top: 2px solid #4fc3f7;
+        margin-top: 15px;
+        padding-top: 15px;
     }
-    .risk-assessment h4 {
-        color: #ffffff;
-    }
-    .risk-assessment .risk-score {
-        font-weight: bold;
-        font-size: 1.2em;
-    }
+    .risk-assessment h4 { color: #ffffff; }
+    .risk-assessment .risk-score { font-weight: bold; font-size: 1.2em; }
     .score-high { color: #4CAF50; }
     .score-mid { color: #FFC107; }
     .score-low { color: #F44336; }
-    .risk-assessment strong {
-        color: #4fc3f7;
+    .risk-assessment strong { color: #4fc3f7; }
+
+    /* --- 【核心修改】 仪表盘样式 --- */
+    
+    /* 1. "超级卡片" 容器 */
+    .dashboard-card {
+        background-color: rgba(40,40,60,0.9); /* 统一的深色背景 */
+        border: 1px solid #4fc3f7;
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 0 20px rgba(79,195,247,0.3);
+    }
+    
+    /* 2. 仪表盘内的 "子卡片" (图表块) */
+    .dashboard-block {
+        background: rgba(44,44,64,0.85); /* 比 "超级卡片" 亮一点 */
+        border: 1px solid rgba(79,195,247,0.2);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 15px; /* 块之间的间距 */
+        height: 100%; /* 确保在网格中高度一致 */
+        
+        /* 【动效】 */
+        transition: all 0.3s ease; 
+    }
+    
+    /* 3. 【交互性】悬停动效 */
+    .dashboard-block:hover {
+        transform: scale(1.02); /* 放大 */
+        box-shadow: 0 0 25px rgba(79,195,247,0.5); /* 发光 */
+        border-color: rgba(79,195,247,0.6);
+        z-index: 10;
+        position: relative;
     }
 
-    /* --- 【移除】Tab 样式 (已删除) --- */
+    .dashboard-block h4 {
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid rgba(79,195,247,0.3);
+    }
+    
+    /* 图表容器的背景色 (可选，如果需要) */
+    .chart-container {
+        background-color: #2a3f5a;
+        border-radius: 5px;
+    }
+    /* --- 仪表盘样式结束 --- */
 
   </style>
 </head>
@@ -205,65 +243,77 @@
     </form>
   </div>
 
-  <div class="row g-3 mb-4">
+  <div class="dashboard-card mb-4">
+    <div class="row g-3">
 
-    <div class="col-lg-6">
-      <div class="card mb-3">
-        <div class="card-header">
-           <h4>情感雷达</h4>
+        <div class="col-lg-8">
+            <div class="dashboard-block">
+                <h4>{{ review_label }} 主题词云</h4>
+                <div class="chart-container">
+                    <div id="wordcloud_chart" 
+                         style="width: 100%; height: 350px;"
+                         data-word-data='{{ word_data_json | safe }}'
+                         data-topic-map='{{ topic_map_json | safe }}'>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body" style="background-color: #2a3f5a;">
-          <div id="radarChart" 
-               style="width: 100%; height: 350px;"
-               data-radar='{{ radar_json | safe }}'>
-          </div>
+        <div class="col-lg-4">
+            <div class="dashboard-block">
+                <h4>情感雷达 (仅好评)</h4>
+                <div class="chart-container">
+                    <div id="radarChart" 
+                         style="width: 100%; height: 350px;"
+                         data-radar='{{ radar_json | safe }}'>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
 
-      <div class="card">
-        <div class="card-header">
-          <h4>情感随时间变化</h4>
+        <div class="col-lg-4">
+            <div class="dashboard-block">
+                <h4>玩家体验阶段</h4>
+                <div class="chart-container">
+                    <div id="playtime_sentiment_chart" 
+                         style="width: 100%; height: 350px;"
+                         data-playtime-sentiment='{{ playtime_sentiment_json | safe }}'>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body" style="background-color: #2a3f5a;">
-          <div id="time_series_chart" 
-               style="width: 100%; height: 350px;"
-               data-time-series='{{ time_series_json | safe }}'>
-          </div>
+        <div class="col-lg-8">
+            <div class="dashboard-block">
+                <h4>情感随时间变化</h4>
+                <div class="chart-container">
+                    <div id="time_series_chart" 
+                         style="width: 100%; height: 350px;"
+                         data-time-series='{{ time_series_json | safe }}'>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
+
+        <div class="col-lg-12">
+            <div class="dashboard-block">
+                <h4>主要{{ review_label }}主题 (BERTopic)</h4>
+                <div style="max-height: 350px; overflow-y: auto; padding-right: 10px;">
+                    <ul>
+                        {% if current_topic_map %}
+                            {% for topic_id, info in current_topic_map.items() %}
+                            <li class="topic-item">
+                                <strong>主题: {{ info.keywords }}</strong>
+                                <p>{{ info.summary | safe }}</p>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li>未能提取到有效主题。</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
     </div>
-
-    <div class="col-lg-6">
-      <div class="card mb-3">
-        <div class="card-header">
-           <h4>{{ review_label }} 主题词云</h4>
-        </div>
-        <div class="card-body" style="background-color: #2a3f5a;">
-          <div id="wordcloud_chart" 
-               style="width: 100%; height: 350px;"
-               data-word-data='{{ word_data_json | safe }}'
-               data-topic-map='{{ topic_map_json | safe }}'>
-          </div>
-        </div>
-      </div>
-
-      <div class="topics">
-          <h3>主要{{ review_label }}主题 (BERTopic 语义分析)</h3>
-          <ul>
-              {% if current_topic_map %}
-                  {% for topic_id, info in current_topic_map.items() %}
-                  <li class="topic-item">
-                      <strong>主题: {{ info.keywords }}</strong>
-                      <p>{{ info.summary | safe }}</p>
-                  </li>
-                  {% endfor %}
-              {% else %}
-                  <li>未能提取到有效主题。</li>
-              {% endif %}
-          </ul>
-      </div>
-    </div>
-
   </div>
   <div class="review-list">
     <h3>{{ review_label }}列表 (示例)</h3>

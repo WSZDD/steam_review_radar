@@ -49,7 +49,7 @@ def index():
         "recommend_score": None, "suggestion": None,
         "word_data_json": "[]", "topic_map_json": "{}",
         "negative_topics": {}, "time_series_json": "{}",
-        "radar_json": "{}"
+        "radar_json": "{}", "playtime_sentiment_json": "{}"
     }
 
     if request.method == "POST":

@@ -201,6 +201,71 @@ $(document).ready(function(){
         }
     }
 
+    const Sentimenttime = document.getElementById('playtime_sentiment_chart'); // <-- 使用新 ID
+    if (Sentimenttime) {
+        const timeData = JSON.parse(Sentimenttime.dataset.playtimeSentiment); // <-- 使用新 data- 
+
+        // 检查新数据结构是否有效
+        if (timeData && timeData.labels && timeData.labels.length > 0) {
+            const timeChart = echarts.init(Sentimenttime);
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function (params) {
+                        let tooltip = `<strong>${params[0].name}</strong><br/>`;
+                        params.forEach(item => {
+                            tooltip += `${item.marker} ${item.seriesName}: ${item.value.toFixed(1)}分<br/>`;
+                        });
+                        return tooltip;
+                    },
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    borderColor: '#66c0f4',
+                    textStyle: { color: '#fff' }
+                },
+                legend: {
+                    data: ['好评情感', '差评情感'],
+                    textStyle: { color: '#e0e0e0' }
+                },
+                grid: {
+                    left: '3%', right: '4%', bottom: '3%', containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: timeData.labels, // X 轴 (时长标签)
+                    axisLine: { lineStyle: { color: '#8392A5' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '平均情感分 (0-100)',
+                    min: 0,
+                    max: 100,
+                    axisLine: { lineStyle: { color: '#8392A5' } },
+                    splitLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+                },
+                series: [
+                    {
+                        name: '好评情感',
+                        type: 'bar', // 使用柱状图
+                        smooth: true,
+                        data: timeData.positive_scores, // Y 轴 (好评均分)
+                        itemStyle: { color: '#4CAF50' }, // 绿色
+                    },
+                    {
+                        name: '差评情感',
+                        type: 'bar', // 使用柱状图
+                        smooth: true,
+                        data: timeData.negative_scores, // Y 轴 (差评均分)
+                        itemStyle: { color: '#F44336' }, // 红色
+                    }
+                ]
+            };
+            timeChart.setOption(option);
+            $(window).on('resize', function () {
+                timeChart.resize();
+            });
+        }
+    }
+
     const radarDom = document.getElementById('radarChart');
     if (radarDom) {
         try {
