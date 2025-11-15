@@ -23,8 +23,7 @@
       border: 1px solid #4fc3f7;
       border-radius: 12px;
       padding: 20px;
-      margin: 20px auto;
-      width: 80%;
+      margin-bottom: 20px;
       box-shadow: 0 0 20px rgba(79,195,247,0.3);
     }
     .game-cover {
@@ -210,6 +209,86 @@
     .topic-item:hover {
         background-color: #2a3f5a; /* 悬停时加深背景 */
     }
+    .scrollable-topics {
+        max-height: 350px;
+        overflow-y: auto;
+        padding-right: 10px; /* 留出滚动条空间 */
+    }
+
+    /* 2. Firefox 滚动条 */
+    .scrollable-topics {
+        scrollbar-width: thin; /* Firefox: "thin" 或 "auto" */
+        /* 滚动条滑块颜色, 轨道颜色 */
+        scrollbar-color: #4fc3f7 rgba(40,40,60,0.9); 
+    }
+
+    /* 3. Chrome, Edge, Safari (Webkit) 滚动条 */
+    .scrollable-topics::-webkit-scrollbar {
+        width: 8px; /* 滚动条宽度 */
+    }
+
+    .scrollable-topics::-webkit-scrollbar-track {
+        background: rgba(40,40,60,0.9); /* 轨道颜色 (匹配卡片背景) */
+        border-radius: 10px;
+    }
+
+    .scrollable-topics::-webkit-scrollbar-thumb {
+        background-color: #4fc3f7; /* 滚动条滑块颜色 (蓝色) */
+        border-radius: 10px;
+        /* (可选) 添加一个边框来模拟 padding */
+        border: 2px solid rgba(40,40,60,0.9); 
+    }
+
+    .scrollable-topics::-webkit-scrollbar-thumb:hover {
+        background-color: #66d0f8; /* 悬停时更亮 */
+    }
+    .modal-content-custom {
+        background-color: rgba(40,40,60,0.95); /* 使用 info-card 的背景色 */
+        border: 1px solid #4fc3f7; /* 统一的蓝色边框 */
+        border-radius: 12px; /* 统一的圆角 */
+        box-shadow: 0 0 20px rgba(79,195,247,0.3); /* 统一的阴影 */
+        color: #e0e0e0; /* 统一文本颜色 */
+    }
+    .modal-content-custom .modal-header {
+        border-bottom: 1px solid rgba(79,195,247,0.3); /* 蓝色分隔线 */
+    }
+    .modal-content-custom .modal-header .modal-title {
+        color: #4fc3f7; /* 统一标题颜色 */
+        text-shadow: 0 0 10px rgba(79,195,247,0.5); /* 统一标题阴影 */
+    }
+    .modal-content-custom .modal-footer {
+        border-top: 1px solid rgba(79,195,247,0.3);
+    }
+    .modal-content-custom .modal-body img {
+        border: 2px solid #4fc3f7; /* 给头像也加上边框 */
+        box-shadow: 0 0 10px rgba(79,195,247,0.4);
+    }
+    .modal-content-custom .btn-close {
+        /* --- 1. 强制重置 Bootstrap 样式 --- */
+        border: 1px solid #4fc3f7;
+        border-radius: 50%;
+        padding: 0.5em; /* 确保是圆形 */
+        transition: all 0.3s ease;
+        opacity: 0.8;
+
+        /* --- 2. 【核心修复】 --- */
+        /* 我们必须同时覆盖 background 和 filter 属性 */
+        
+        /* A. 禁用 Bootstrap 的滤镜 */
+        filter: none !important; 
+        
+        /* B. 手动提供“白色 X”图标 (来自 Bootstrap 5.3) 
+              并设置我们的蓝色背景色 */
+        background: rgba(79, 195, 247, 0.2) url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23fff'%3e%3cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z'/%3e%3c/svg%3e") center/1em auto no-repeat !important;
+    }
+    
+    .modal-content-custom .btn-close:hover {
+        opacity: 1;
+        /* 我们只需要在悬停时改变 background-color 即可 */
+        background-color: rgba(79, 195, 247, 0.4) !important; 
+        box-shadow: 0 0 15px #4fc3f7;
+        transform: scale(1.05);
+    }
   </style>
 </head>
 <body>
@@ -221,7 +300,7 @@
   <h1 class="text-center mb-5">🎮 Steam 游戏评论雷达</h1>
 
   <form method="POST" class="mb-4 text-center">
-    <div class="input-group w-50 mx-auto">
+    <div class="input-group w-75 mx-auto">
       <input type="text" class="form-control bg-dark text-light border-0" placeholder="请输入游戏名称..." name="game_name" required value="{{ game_name or '' }}">
       <button type="submit" class="btn btn-primary">开始分析</button>
     </div>
@@ -232,46 +311,46 @@
   {% endif %}
 
   {% if game_info %}
-  <div class="info-card row">
-    <div class="col-md-4 text-center">
-      <img src="{{ game_info.header_image }}" alt="封面" class="game-cover" width="280">
-    </div>
-    <div class="col-md-8">
-      <h3>{{ game_info.name }}</h3>
-      <p><strong>发行日期：</strong>{{ game_info.release_date }}</p>
-      <p><strong>价格：</strong>{{ game_info.price }}</p>
-      <p><strong>开发商：</strong>{{ game_info.developer }}</p>
-      <p><strong>发行商：</strong>{{ game_info.publisher }}</p>
-      <p><strong>简介：</strong>{{ game_info.short_description }}</p>
-    </div>
-    {% if recommend_score is not none %}
-    <div class="risk-assessment">
-      <h4>
-          游戏推荐指数: 
-          <span class="risk-score 
-              {% if recommend_score > 75 %}
-                  score-high
-              {% elif recommend_score > 50 %}
-                  score-mid
-              {% else %}
-                  score-low
-              {% endif %}
-          ">
-              {{ recommend_score }} / 100
-          </span>
-          <span style="margin-left: 20px; font-size: 0.9em;">
-              Steam 官方: 
+  <div class="info-card mb-4 w-75 mx-auto">
+    <div class="row g-3">
+      <div class="col-md-4 text-center">
+        <img src="{{ game_info.header_image }}" alt="封面" class="game-cover" width="280">
+      </div>
+    
+      <div class="col-md-8">
+        <h3>{{ game_info.name }}</h3>
+        <p><strong>发行日期：</strong>{{ game_info.release_date }}</p>
+        <p><strong>价格：</strong>{{ game_info.price }}</p>
+        <p><strong>开发商：</strong>{{ game_info.developer }}</p>
+        <p><strong>发行商：</strong>{{ game_info.publisher }}</p>
+        <p><strong>简介：</strong>{{ game_info.short_description }}</p>
+        
+        {% if recommend_score is not none %}
+        <div class="risk-assessment">
+          <h4>
+            游戏推荐指数: 
+            <span class="risk-score 
+                {% if recommend_score > 75 %} score-high
+                {% elif recommend_score > 50 %} score-mid
+                {% else %} score-low {% endif %}
+            ">
+                {{ recommend_score }} / 100
+            </span>
+             
+            <span style="margin-left: 20px;">
+              Steam 官方:
               <strong style="color: #66c0f4;">{{ game_rating_desc }}</strong>
-          </span>
-      </h4>
-      <p><strong>购买建议:</strong> {{ suggestion }}</p>
+            </span>
+            
+          </h4>
+          <p><strong>购买建议:</strong> {{ suggestion }}</p>
+        </div>
+        {% endif %}
+      </div>
     </div>
-    {% endif %}
-    </div>
-  </div>
-  {% endif %}
+  </div> {% endif %}
 
-  <div class="dashboard-card mb-4">
+  <div class="dashboard-card mb-4 w-75 mx-auto">
     <div class="row g-3">
           <div class="col-lg-12">
             <div class="dashboard-block">
@@ -282,7 +361,7 @@
                        (重置高亮)
                     </a>
                 </h4>
-                <div style="max-height: 350px; overflow-y: auto; padding-right: 10px;">
+                <div class="scrollable-topics">
                     <ul>
                         {% if current_topic_map %}
                             {% for topic_id, info in current_topic_map.items() %}
@@ -366,20 +445,24 @@
     </form>
   </div>
 
-  <div class="review-list">
-    <h3>{{ review_label }}列表 (示例)</h3>
+  <div class="review-list w-75 mx-auto">
+    <h3>{{ review_label }}列表</h3>
   </div>
 
-  <div class="masonry">
+  <div class="info-card mb-4 w-75 mx-auto">
+    <div class="masonry">
     {% for i, row in reviews.iterrows() %}
     <div class="masonry-item">
       <div class="card mb-2 p-2 comment-card"
            data-steamid="{{ row['author_name'] }}"
            data-appid="{{ row['appid'] }}"
-           data-content="{{ row['content'] }}">
+           data-content="{{ row['content'] }}"
+           data-voted-up="{{ row['voted_up'] }}"
+           data-playtime="{{ row['playtime_at_review'] }}"
+           data-votes="{{ row['votes_up'] }}">
         
         <div class="d-flex justify-content-between align-items-center mb-1">
-          <span class="badge bg-primary">
+          <span class="badge {% if row['voted_up'] %}bg-primary{% else %}bg-danger{% endif %}">
             {{ "👍好评" if row['voted_up'] else "👎差评" }}
           </span>
         </div>
@@ -400,20 +483,28 @@
       </div>
     </div>
     {% endfor %}
+    </div>
   </div>
   {% endif %}
 </div>
 
 <div class="modal fade" id="commentModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content bg-dark text-light">
+    <div class="modal-content modal-content-custom">
       <div class="modal-header">
-        <h5 class="modal-title" id="modalAuthor">评论者</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <h4 class="modal-title" id="modalAuthor">评论者</h4>
+        <span id="modalReviewType" class="badge bg-primary ms-3"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body d-flex">
         <img id="modalAvatar" src="" class="rounded-circle me-3" width="80" height="80">
-        <p id="modalContent" class="mt-2"></p>
+        <div class="ms-3 flex-grow-1">
+            <div class="card-footer-info mb-3"> 
+              <span><strong>🕓 时长:</strong> <span id="modalPlaytime">...</span></span>
+              <span><strong>🗳️ 获赞:</strong> <span id="modalVotes">...</span></span>
+            </div>
+            <p id="modalContent" class="mt-2"></p>
+        </div>
       </div>
     </div>
   </div>

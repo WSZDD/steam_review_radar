@@ -8,7 +8,7 @@ except Exception as e:
     print(f"CRITICAL: 无法初始化 SentimentAnalyzer. {e}")
     analyzer = None
 
-def fetch_game_reviews(appid, language="schinese", num_reviews=50, review_type="all"):
+def fetch_game_reviews(appid, language="schinese", num_reviews=100, review_type="all"):
     """
     获取 Steam 游戏评论，返回 DataFrame 包含：
     author_name、author_avatar、content、voted_up
