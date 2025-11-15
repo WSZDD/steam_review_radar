@@ -29,10 +29,7 @@ $(document).ready(function(){
     // 2. 表单提交 "加载中" 提示 (来自你的 jQuery)
     // ===================================
     $("form").on("submit", function() {
-        // 避免重复添加
-        if ($("#loading").length === 0) {
-            $("body").append('<div id="loading" class="text-center mt-4">⏳ 加载中，请稍候...</div>');
-        }
+        $("#loadingOverlay").css("display", "flex");
     });
 
     // ===================================
