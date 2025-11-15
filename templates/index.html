@@ -202,6 +202,14 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
+    .topic-item {
+        /* ... (您已有的样式) ... */
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    .topic-item:hover {
+        background-color: #2a3f5a; /* 悬停时加深背景 */
+    }
   </style>
 </head>
 <body>
@@ -263,28 +271,33 @@
   </div>
   {% endif %}
 
-  {% if game_info %}
-  <div class="text-center mb-4">
-    <form method="POST" style="display:inline;">
-      <input type="hidden" name="game_name" value="{{ game_name }}">
-      <input type="hidden" name="review_type" value="positive">
-      <button type="submit" class="toggle-btn {% if review_type=='positive' %}active{% endif %}">👍 查看好评</button>
-    </form>
-    <form method="POST" style="display:inline;">
-      <input type="hidden" name="game_name" value="{{ game_name }}">
-      <input type="hidden" name="review_type" value="negative">
-      <button type="submit" class="toggle-btn {% if review_type=='negative' %}active{% endif %}">👎 查看差评</button>
-    </form>
-    <form method="POST" style="display:inline;">
-      <input type="hidden" name="game_name" value="{{ game_name }}">
-      <input type="hidden" name="force_update_button" value="true">
-      <button type="submit" class="toggle-btn">🔄 更新数据</button>
-    </form>
-  </div>
-
   <div class="dashboard-card mb-4">
     <div class="row g-3">
-
+          <div class="col-lg-12">
+            <div class="dashboard-block">
+                <h4>
+                    主要{{ review_label }}主题 (BERTopic)
+                    <a href="javascript:void(0)" id="resetWordcloudHighlight" 
+                       style="display:none; font-size: 0.6em; color: #4fc3f7; vertical-align: middle; text-decoration: none;">
+                       (重置高亮)
+                    </a>
+                </h4>
+                <div style="max-height: 350px; overflow-y: auto; padding-right: 10px;">
+                    <ul>
+                        {% if current_topic_map %}
+                            {% for topic_id, info in current_topic_map.items() %}
+                            <li class="topic-item" data-topic-id="{{ topic_id }}">
+                                <strong>主题: {{ info.keywords }}</strong>
+                                <p>{{ info.summary | safe }}</p>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li>未能提取到有效主题。</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
         <div class="col-lg-8">
             <div class="dashboard-block">
                 <h4>{{ review_label }} 主题词云</h4>
@@ -331,29 +344,28 @@
                 </div>
             </div>
         </div>
-
-        <div class="col-lg-12">
-            <div class="dashboard-block">
-                <h4>主要{{ review_label }}主题 (BERTopic)</h4>
-                <div style="max-height: 350px; overflow-y: auto; padding-right: 10px;">
-                    <ul>
-                        {% if current_topic_map %}
-                            {% for topic_id, info in current_topic_map.items() %}
-                            <li class="topic-item">
-                                <strong>主题: {{ info.keywords }}</strong>
-                                <p>{{ info.summary | safe }}</p>
-                            </li>
-                            {% endfor %}
-                        {% else %}
-                            <li>未能提取到有效主题。</li>
-                        {% endif %}
-                    </ul>
-                </div>
-            </div>
-        </div>
-
     </div>
   </div>
+
+  {% if game_info %}
+  <div class="text-center mb-4">
+    <form method="POST" style="display:inline;">
+      <input type="hidden" name="game_name" value="{{ game_name }}">
+      <input type="hidden" name="review_type" value="positive">
+      <button type="submit" class="toggle-btn {% if review_type=='positive' %}active{% endif %}">👍 查看好评</button>
+    </form>
+    <form method="POST" style="display:inline;">
+      <input type="hidden" name="game_name" value="{{ game_name }}">
+      <input type="hidden" name="review_type" value="negative">
+      <button type="submit" class="toggle-btn {% if review_type=='negative' %}active{% endif %}">👎 查看差评</button>
+    </form>
+    <form method="POST" style="display:inline;">
+      <input type="hidden" name="game_name" value="{{ game_name }}">
+      <input type="hidden" name="force_update_button" value="true">
+      <button type="submit" class="toggle-btn">🔄 更新数据</button>
+    </form>
+  </div>
+
   <div class="review-list">
     <h3>{{ review_label }}列表 (示例)</h3>
   </div>

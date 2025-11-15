@@ -2,7 +2,15 @@
   这一个函数会包裹我们所有的 JS 功能
 */
 $(document).ready(function(){
-
+    var wordcloudChart = null; // 用于高亮联动
+    var globalWordData = [];     // 存储词云的原始数据
+    var originalWordCloudColorFunc = function () { // 存储原始颜色
+        return 'rgb(' + [
+            Math.round(Math.random() * 160) + 95,
+            Math.round(Math.random() * 160) + 95,
+            Math.round(Math.random() * 160) + 95
+        ].join(',') + ')';
+    };
     // ===================================
     // 1. 评论卡片点击弹窗 (来自你的 jQuery)
     // ===================================
@@ -38,72 +46,33 @@ $(document).ready(function(){
     
     // 3.1 查找 ECharts 容器
     const chartDom = document.getElementById('wordcloud_chart');
-    
-    // 3.2 检查容器是否存在 (如果页面上没有词云，就不执行)
     if (chartDom) {
-        
         // 3.3 从 HTML 的 'data-*' 属性中读取数据
-        const wordData = JSON.parse(chartDom.dataset.wordData);
+        globalWordData = JSON.parse(chartDom.dataset.wordData); // <-- 【修改】 存储到全局
         const topicMap = JSON.parse(chartDom.dataset.topicMap);
 
         // 3.4 仅当有数据时才初始化图表
-        if (wordData && wordData.length > 0) {
+        if (globalWordData && globalWordData.length > 0) { // <-- 【修改】
             
-            const myChart = echarts.init(chartDom);
+            wordcloudChart = echarts.init(chartDom); // <-- 【修改】 存到全局
             const option = {
-                tooltip: {
-                    trigger: 'item',
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    borderColor: '#66c0f4',
-                    borderWidth: 1,
-                    textStyle: { color: '#fff' },
-                    confine: true, 
-                    extraCssText: 'width: 300px; white-space: normal; word-wrap: break-word;',
-                    formatter: function (params) {
-                        const word = params.data.name;
-                        const topic_id = params.data.topic_id;
-                        const topic_info = topicMap[topic_id]; 
-                        if (topic_info) {
-                            return `<strong style="font-size: 1.1em;">${word}</strong><br/>` +
-                                   `<strong style="color: #66c0f4;">主题:</strong> ${topic_info.keywords}<br/>` +
-                                   `<strong style="color: #66c0f4;">摘要:</strong> ${topic_info.summary}`;
-                        } else {
-                            return `<strong>${word}</strong><br/> (无关联主题)`;
-                        }
-                    }
-                },
+                // ... (tooltip 保持不变, 确保包含 turn 23 的换行修复) ...
                 series: [{
                     type: 'wordCloud',
-                    shape: 'pentagon',
-                    data: wordData,
-                    sizeRange: [14, 60],
-                    rotationRange: [-45, 45],
-                    rotationStep: 15,
-                    gridSize: 10,
-                    drawOutOfBound: false,
+                    data: globalWordData, // <-- 【修改】
+                    // ...
                     textStyle: {
-                        color: function () {
-                            return 'rgb(' + [
-                                Math.round(Math.random() * 160) + 95,
-                                Math.round(Math.random() * 160) + 95,
-                                Math.round(Math.random() * 160) + 95
-                            ].join(',') + ')';
-                        }
+                        color: originalWordCloudColorFunc // <-- 【修改】
                     },
-                    emphasis: {
-                        textStyle: {
-                            shadowBlur: 10,
-                            shadowColor: '#333'
-                        }
-                    }
+                    // ...
                 }]
             }; // option 结束
 
-            myChart.setOption(option);
+            wordcloudChart.setOption(option); // <-- 【修改】
             
             // 3.5 窗口大小调整 (使用 jQuery)
             $(window).on('resize', function () {
-                myChart.resize();
+                wordcloudChart.resize(); // <-- 【修改】
             });
         }
     }
@@ -333,4 +302,57 @@ $(document).ready(function(){
             console.error("雷达图 ECharts 渲染失败:", e);
         }
     }
+
+    $('.dashboard-block').on('click', '.topic-item', function() {
+        if (!wordcloudChart || !globalWordData) return;
+
+        // 从 HTML data- 属性获取 topic_id
+        const clickedTopicId = $(this).data('topic-id');
+        
+        // 1. 显示重置按钮
+        $('#resetWordcloudHighlight').show();
+        
+        // 2. 更新词云
+        // 我们通过 setOption 动态修改 *每一个* 词的 textStyle
+        wordcloudChart.setOption({
+            series: [{
+                // ECharts 会智能合并, 我们只提供 data
+                data: globalWordData.map(word => {
+                    // 必须返回一个包含所有原始属性的新对象
+                    return {
+                        name: word.name,
+                        value: word.value,
+                        topic_id: word.topic_id,
+                        // 【核心】: 动态设置颜色
+                        textStyle: {
+                            // 匹配主题的词：高亮 (蓝色)
+                            // 不匹配的词： 变灰 (半透明)
+                            color: (word.topic_id == clickedTopicId) 
+                                   ? '#4fc3f7' 
+                                   : 'rgba(200, 200, 200, 0.3)'
+                        }
+                    };
+                })
+            }]
+        });
+    });
+
+    // 监听词云重置按钮
+    $('#resetWordcloudHighlight').on('click', function() {
+        if (!wordcloudChart || !globalWordData) return;
+        
+        // 1. 隐藏按钮
+        $(this).hide();
+        
+        // 2. 恢复词云
+        wordcloudChart.setOption({
+            series: [{
+                data: globalWordData, // 传回原始数据
+                textStyle: {
+                    // 传回原始的随机颜色函数
+                    color: originalWordCloudColorFunc
+                }
+            }]
+        });
+    });
 });
