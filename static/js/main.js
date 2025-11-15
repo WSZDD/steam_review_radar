@@ -60,6 +60,8 @@ $(document).ready(function(){
                     borderColor: '#66c0f4',
                     borderWidth: 1,
                     textStyle: { color: '#fff' },
+                    confine: true, 
+                    extraCssText: 'width: 300px; white-space: normal; word-wrap: break-word;',
                     formatter: function (params) {
                         const word = params.data.name;
                         const topic_id = params.data.topic_id;

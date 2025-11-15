@@ -48,22 +48,28 @@
       border-radius: 12px;
       color: #d6e9ff;
       transition: all 0.3s;
-      cursor: pointer;
     }
-    .card:hover { transform: translateY(-3px); box-shadow: 0 0 20px rgba(79,195,247,0.4); }
+    .comment-card:hover { 
+        transform: translateY(-3px); 
+        box-shadow: 0 0 20px rgba(79,195,247,0.4); 
+    }
+    .comment-card {
+        cursor: pointer;
+    }
+
     .card img { border-radius: 50%; object-fit: cover; box-shadow: 0 0 5px rgba(79,195,247,0.5); }
     .card-text { color: #cfd8dc; font-size: 0.95rem; line-height: 1.4em; }
     .card-footer-info {
           font-size: 0.85rem;
-          color: #90a4ae; /* 浅灰色 */
+          color: #90a4ae;
           display: flex;
-          justify-content: space-between; /* 两端对齐 */
-          border-top: 1px solid rgba(79,195,247,0.1); /* 细分隔线 */
+          justify-content: space-between;
+          border-top: 1px solid rgba(79,195,247,0.1);
           padding-top: 8px;
           margin-top: 10px;
     }
     .card-footer-info strong {
-        color: #b0bec5; /* 稍亮的标签颜色 */
+        color: #b0bec5;
     }
     /* 响应式列数 */
     @media (max-width: 992px) { .masonry { column-count: 2; } }
@@ -84,15 +90,7 @@
       color: #0d0d16;
       box-shadow: 0 0 15px #4fc3f7;
     }
-
-    /* 词云 */
-    .wordcloud {
-      max-width: 100%;
-      border-radius: 10px;
-      box-shadow: 0 0 30px rgba(79,195,247,0.6);
-      transition: 0.3s;
-    }
-    .wordcloud:hover { transform: scale(1.03); }
+    
     .topic-item {
         background-color: #1a2430;
         padding: 10px 15px;
@@ -100,54 +98,37 @@
         margin-bottom: 10px;
     }
     .topic-item strong {
-        color: #66c0f4; /* 关键词用蓝色 */
+        color: #66c0f4;
         display: block;
         font-size: 1.1em;
     }
     .topic-item p {
         margin: 5px 0 0 0;
-        color: #c7d5e0; /* 摘要用亮灰色 */
+        color: #c7d5e0;
         font-style: italic;
     }
-    .timeseries-container {
-        margin-top: 20px;
-        background-color: #2a3f5a;
-        padding: 10px;
-        border-radius: 10px;
-        border: 1px solid #4fc3f7;
-    }
-    .scatter-container {
-        margin-top: 20px;
-        background-color: #2a3f5a;
-        padding: 10px;
-        border-radius: 10px;
-        border: 1px solid #4fc3f7;
-    }
+
     .risk-assessment {
     border-top: 2px solid #4fc3f7;
     margin-top: 15px;
     padding-top: 15px;
     }
     .risk-assessment h4 {
-        color: #ffffff; /* 覆盖 H4 默认的蓝色 */
+        color: #ffffff;
     }
     .risk-assessment .risk-score {
         font-weight: bold;
         font-size: 1.2em;
     }
-    /* 新增：定义不同的颜色类 */
-    .score-high {
-        color: #4CAF50; /* 绿色 (推荐) */
-    }
-    .score-mid {
-        color: #FFC107; /* 黄色 (褒贬不一) */
-    }
-    .score-low {
-        color: #F44336; /* 红色 (不推荐) */
-    }
+    .score-high { color: #4CAF50; }
+    .score-mid { color: #FFC107; }
+    .score-low { color: #F44336; }
     .risk-assessment strong {
         color: #4fc3f7;
     }
+
+    /* --- 【移除】Tab 样式 (已删除) --- */
+
   </style>
 </head>
 <body>
@@ -180,7 +161,8 @@
     </div>
     {% if recommend_score is not none %}
     <div class="risk-assessment">
-      <h4>游戏推荐指数: 
+      <h4>
+          游戏推荐指数: 
           <span class="risk-score 
               {% if recommend_score > 75 %}
                   score-high
@@ -193,7 +175,7 @@
               {{ recommend_score }} / 100
           </span>
           <span style="margin-left: 20px; font-size: 0.9em;">
-              Steam 评价: 
+              Steam 官方: 
               <strong style="color: #66c0f4;">{{ game_rating_desc }}</strong>
           </span>
       </h4>
@@ -223,24 +205,56 @@
     </form>
   </div>
 
-  <div class="review-content">
-    <div class="wordcloud-container">
-      <h3>{{ review_label }} 交互式主题词云</h3>
-      <div id="wordcloud_chart" 
-           style="width: 100%; height: 450px; background-color: #2a3f5a;"
-           data-word-data='{{ word_data_json | safe }}'
-           data-topic-map='{{ topic_map_json | safe }}'>
+  <div class="row g-3 mb-4">
+
+    <div class="col-lg-6">
+      <div class="card mb-3">
+        <div class="card-header">
+           <h4>情感雷达</h4>
+        </div>
+        <div class="card-body" style="background-color: #2a3f5a;">
+          <div id="radarChart" 
+               style="width: 100%; height: 350px;"
+               data-radar='{{ radar_json | safe }}'>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h4>情感随时间变化</h4>
+        </div>
+        <div class="card-body" style="background-color: #2a3f5a;">
+          <div id="time_series_chart" 
+               style="width: 100%; height: 350px;"
+               data-time-series='{{ time_series_json | safe }}'>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="analysis-container">
+
+    <div class="col-lg-6">
+      <div class="card mb-3">
+        <div class="card-header">
+           <h4>{{ review_label }} 主题词云</h4>
+        </div>
+        <div class="card-body" style="background-color: #2a3f5a;">
+          <div id="wordcloud_chart" 
+               style="width: 100%; height: 350px;"
+               data-word-data='{{ word_data_json | safe }}'
+               data-topic-map='{{ topic_map_json | safe }}'>
+          </div>
+        </div>
+      </div>
+
       <div class="topics">
           <h3>主要{{ review_label }}主题 (BERTopic 语义分析)</h3>
           <ul>
-              {% if negative_topics %}
-                  {% for topic_id, info in negative_topics.items() %}
+              {% if current_topic_map %}
+                  {% for topic_id, info in current_topic_map.items() %}
                   <li class="topic-item">
                       <strong>主题: {{ info.keywords }}</strong>
-                      <p>"{{ info.summary }}"</p>
+                      <p>{{ info.summary | safe }}</p>
                   </li>
                   {% endfor %}
               {% else %}
@@ -248,24 +262,11 @@
               {% endif %}
           </ul>
       </div>
-      <div class="timeseries-container">
-        <h4>好差评随时间变化</h4>
-        <div id="time_series_chart" 
-             style="width: 100%; height: 300px;"
-             data-time-series='{{ time_series_json | safe }}'>
-        </div>
-      </div>
-      <div class="radar-container" style="margin-top: 20px; background-color: #2a3f5a; padding: 10px; border-radius: 10px; border: 1px solid #4fc3f7;">
-        <h4>多维情感雷达</h4>
-        <div id="radarChart" 
-             style="width: 100%; height: 300px;"
-             data-radar='{{ radar_json | safe }}'>
-        </div>
-      </div>
     </div>
-    <div class="review-list">
-      <h3>{{ review_label }}列表 (示例)</h3>
-    </div>
+
+  </div>
+  <div class="review-list">
+    <h3>{{ review_label }}列表 (示例)</h3>
   </div>
 
   <div class="masonry">
@@ -275,6 +276,7 @@
            data-steamid="{{ row['author_name'] }}"
            data-appid="{{ row['appid'] }}"
            data-content="{{ row['content'] }}">
+        
         <div class="d-flex justify-content-between align-items-center mb-1">
           <span class="badge bg-primary">
             {{ "👍好评" if row['voted_up'] else "👎差评" }}
@@ -316,7 +318,8 @@
   </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <script src="https://fastly.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> 
+<script src="https://fastly.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://fastly.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <script src="https://fastly.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
 

@@ -15,6 +15,18 @@ from src.analysis.analysis_manager import get_analysis_results
 load_dotenv()
 API_KEY = os.getenv("STEAM_API_KEY")
 
+RATING_DISPLAY_MAP = {
+    "Overwhelmingly Positive": "好评如潮",
+    "Very Positive": "特别好评",
+    "Mostly Positive": "多半好评",
+    "Positive": "好评",
+    "Mixed": "褒贬不一",
+    "Mostly Negative": "多半差评",
+    "Negative": "差评",
+    "Overwhelmingly Negative": "差评如潮",
+    "No user reviews": "无评分"
+}
+
 app = Flask(__name__)
 
 # --- 缓存目录和时序爬虫已移走 ---
@@ -68,6 +80,17 @@ def index():
                 reviews = reviews_to_analyze # 用于 Masonry 布局
                 game_rating_desc = review_summary.get('review_score_desc', '无评分')
                 
+                # 1. 获取原始字符串 (e.g., "Overwhelmingly Positive")
+                game_rating_desc_raw = review_summary.get('review_score_desc', '无评分')
+                
+                # 2. 翻译 (默认为原始值)
+                game_rating_desc = game_rating_desc_raw 
+                for key, chinese_val in RATING_DISPLAY_MAP.items():
+                    # 使用 "in" 来匹配 "Overwhelmingly Positive (1,234)" 这样的情况
+                    if key in game_rating_desc_raw:
+                        game_rating_desc = chinese_val
+                        break
+
                 # --- 3. 【核心修改】调用分析管理器 ---
                 analysis_results = get_analysis_results(
                     appid, df, game_info, review_summary, 

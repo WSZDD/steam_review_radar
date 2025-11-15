@@ -112,17 +112,17 @@ def get_analysis_results(appid, df, game_info, review_summary, is_fresh_fetch, r
         results["recommend_score"] = score_data['score']
         results["suggestion"] = score_data['suggestion']
         
-        # B: 加载当前切换所需的主题 (用于 ECharts 词云)
+        # B: 加载当前切换所需的主题 (用于 ECharts 词云 *和* HTML 列表)
         print(f"  ... 正在为 [{review_type}] 视图加载主题...")
         topic_cache_file = pos_topics_cache_file if review_type == "positive" else neg_topics_cache_file
         with open(topic_cache_file, 'r', encoding='utf-8') as f:
             topic_data = json.load(f)
+        
         results["word_data_json"] = json.dumps(topic_data['word_data'])
         results["topic_map_json"] = json.dumps(topic_data['topic_map'])
-
-        # C: 加载 *差评* 主题 (用于 HTML 列表)
-        with open(neg_topics_cache_file, 'r', encoding='utf-8') as f:
-            results["negative_topics"] = json.load(f)['topic_map']
+        
+        # 【修复】使用这个键 (current_topic_map) 来动态显示 HTML 列表
+        results["current_topic_map"] = topic_data['topic_map']
         
         # D: 加载时序数据
         with open(time_series_cache_file, 'r', encoding='utf-8') as f:

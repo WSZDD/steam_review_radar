@@ -10,13 +10,35 @@ from sklearn.feature_extraction.text import CountVectorizer
 def _load_stopwords(filepath="static/cn_stopwords.txt"): #
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
-            stopwords = {line.strip() for line in f}
-            # 为 BERTopic 添加一些额外的常见噪音词
-            stopwords.update(["游戏", "这个", "真的", "没有", "一个", "就是", "什么", "不是", "但是", "可以", "感觉"])
-            return list(stopwords)
+            # 1. 从文件加载，并过滤掉空行
+            stopwords = {line.strip() for line in f if line.strip()}
     except FileNotFoundError:
-        print("⚠️ 未找到停用词表")
-        return []
+        print("⚠️ 未找到停用词表，使用内置列表。")
+        stopwords = set()
+    
+    game_specific_stopwords = {
+        # 默认列表中的词
+        "游戏", "这个", "真的", "没有", "一个", "就是", "什么", "不是", "但是", "可以", "感觉", "不能", "不会", "会",
+        
+        # 平台/通用 ("bug" 保留, 因为它有时是重要主题)
+        "steam", "epic", "uplay", "dev", "player", "players", "devs",
+        
+        # 中文噪音词 (语气、拟声、缩写)
+        "哈哈", "哈哈哈", "哈哈哈哈", "嘎嘎", "咕咕", "xswl", "666", "yyds",
+        "个人", "觉得", "玩", "比较", "问题", "建议", "希望", "知道", "小时",
+        "方面", "总体", "来说", "目前", "东西", "内容", "体验", "有点", "很多", "一些",
+        "怎么", "那么", "所以", "如果", "还是", "因为", "而且", "还有", "以及", "一堆",
+        "反正", "为什么", "一块", "这款", "u003d",
+        
+        # 常见英文噪音词 (Jieba经常会分出单个英文字母/单词)
+        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", 
+        "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+        "an", "is", "it", "to", "the", "and", "of", "in", "on", "for", "with",
+        "my", "you", "me", "he", "she", "we", "they", "get", "go", "so",
+        "lol", "wtf", "omg", "gg", "nice", "good", "bad", "play", "game", "games",
+    }
+    stopwords.update(game_specific_stopwords)
+    return list(stopwords)
 
 stopwords = _load_stopwords()
 
@@ -53,11 +75,9 @@ def analyze_with_bertopic(reviews_series):
     docs = reviews_series.apply(_clean_text).tolist()
 
     # 2. 准备 BERTopic 的中文环境
-    # 我们需要一个 CountVectorizer 来处理分词和停用词
     vectorizer_model = CountVectorizer(tokenizer=_jieba_tokenizer, stop_words=stopwords)
 
-    # 3. 初始化 BERTopic
-    # min_topic_size=5 意味着一个主题至少要包含 5 篇评论
+    # 3. 初始化 BERTopic (保持不变)
     topic_model = BERTopic(
         embedding_model=embedding_model,
         vectorizer_model=vectorizer_model,
@@ -68,11 +88,9 @@ def analyze_with_bertopic(reviews_series):
         verbose=True
     )
 
-    # 4. 训练模型 (这是最慢的一步)
-    # BERTopic 会自动处理降维 (UMAP) 和聚类 (HDBSCAN)
+    # 4. 训练模型 (保持不变)
     try:
         topics, _ = topic_model.fit_transform(docs)
-        # 在训练后，立即获取代表性评论
         representative_docs = topic_model.get_representative_docs()
     except Exception as e:
         print(f"❌ BERTopic 训练失败: {e}")
@@ -84,36 +102,55 @@ def analyze_with_bertopic(reviews_series):
     echarts_word_data = []
     topic_info = topic_model.get_topic_info()
     
-    # --- 3. 修改循环，构建新的 topic_map ---
+    # --- 【核心修改】---
+    # 统一使用 get_topic() 和“筛选法”，彻底替换 row.Name 逻辑
+    
     for _, row in topic_info[topic_info.Topic != -1].iterrows():
         topic_id = int(row.Topic)
         
-        # --- a. 构建 topic_map (包含关键词和摘要) ---
+        # 1. 从源头获取词汇和分数
         all_words_scores = topic_model.get_topic(topic_id) 
+
+        # 2. 如果主题无效（e.g., 只有停用词），则跳过
+        if not all_words_scores:
+            continue
+
+        # --- a. 构建 topic_map (使用“筛选法”) ---
         
-        # 提取关键词
-        keywords = [w[0] for w in all_words_scores[:7] if w[0] and w[0].strip()]
+        # 3. 【您的方案】筛选关键词，确保不为空
+        keywords = []
+        for word, score in all_words_scores[:7]: # 取前7个
+            if word and word.strip(): # 筛选掉 None, "" 和 " "
+                keywords.append(word)
+        
+        # 4. 如果筛选后没有关键词，也跳过
+        if not keywords:
+            continue
+            
+        # 5. 拼接 (这种方法永远不会在开头产生顿号)
         keywords_str = "、".join(keywords)
         
-        # 提取代表性摘要 (即“一句话概括”)
-        summary = "暂无代表性评论。" # 默认值
+        # 6. (摘要逻辑：使用 Top 3)
+        summary = "暂无代表性评论。"
+        summary_docs = []
         if topic_id in representative_docs:
-            summary = representative_docs[topic_id][0] # 取最典型的那一条
-            # 清理和截断摘要
-            summary = _clean_text(summary)
-            if len(summary) > 100:
-                summary = summary[:100] + "..."
+            for doc in representative_docs[topic_id][:3]:
+                cleaned_doc = _clean_text(doc)
+                if len(cleaned_doc) > 60: 
+                    cleaned_doc = cleaned_doc[:60] + "..."
+                summary_docs.append(f'"{cleaned_doc}"') 
+        if summary_docs:
+            summary = " | ".join(summary_docs)
         
-        # 存入新的结构
+        # 7. 存入 topic_map
         topic_map[topic_id] = {
             "keywords": keywords_str,
             "summary": summary
         }
 
-        # --- b. 构建 echarts_word_data (逻辑不变) ---
-        words_scores = all_words_scores
-        if words_scores:
-            for word, score in words_scores:
+        # --- b. 构建 echarts_word_data (使用相同源) ---
+        for word, score in all_words_scores:
+            if word and word.strip(): # 确保词云也不含空词
                 word_value = max(int(score * 1000), 1)
                 echarts_word_data.append({
                     "name": word,

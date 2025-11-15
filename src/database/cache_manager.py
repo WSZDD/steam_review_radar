@@ -2,19 +2,17 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
 import os
-# 导入你新的爬虫函数
 from src.crawler.steam_api_crawler import fetch_game_reviews
 
-# --- 配置 ---
 DB_NAME = "steam_cache.db" 
 CACHE_DURATION_HOURS = 6   
-# REVIEWS_PER_TYPE = 50 # 你新的爬虫默认为50
 
 def _init_db():
     """初始化数据库，创建元数据表（如果不存在）"""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    # 确保表结构是最新的
+    
+    # 最终的、完整的表结构
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS metadata (
         appid INTEGER PRIMARY KEY,
@@ -24,6 +22,7 @@ def _init_db():
         review_score_desc TEXT  
     )
     """)
+
     conn.commit()
     conn.close()
 
@@ -60,23 +59,26 @@ def get_reviews_with_cache(appid, game_real_name, force_update=False):
         try:
             df = pd.read_sql(f"SELECT * FROM {table_name}", conn)
             
-            # --- 核心修复：从 metadata 读取 summary ---
             summary = {}
             cursor = conn.cursor()
-            cursor.execute("SELECT total_positive, total_negative FROM metadata WHERE appid = ?", (appid,))
+            
+            # --- 【核心修复】确保 SELECT 语句也更新了 ---
+            cursor.execute("SELECT total_positive, total_negative, review_score_desc FROM metadata WHERE appid = ?", (appid,))
             summary_data = cursor.fetchone()
+            
             if summary_data:
                 summary = {
                     'total_positive': summary_data[0], 
                     'total_negative': summary_data[1],
-                    'review_score_desc': summary_data[2]
+                    'review_score_desc': summary_data[2] # <-- 现在 summary_data[2] 是安全的
                 }
             # --- 修复结束 ---
 
             conn.close()
             if not df.empty:
-                return df, False, summary # <-- 返回 3 个值
+                return df, False, summary 
         except Exception as e:
+            # 这里的 e 才是真正的错误（例如 "no such column"）
             print(f"⚠️ 缓存读取失败 (table: {table_name})，将重新爬取... Error: {e}")
             
     # 2. [Cache MISS] 缓存无效或不存在，从 API 爬取
@@ -84,7 +86,6 @@ def get_reviews_with_cache(appid, game_real_name, force_update=False):
     
     try:
         print(f"  ...正在爬取 [好评]...")
-        # --- 核心修改：调用你新的爬虫函数 ---
         df_positive, summary = fetch_game_reviews(appid, review_type="positive", num_reviews=50) 
         
         print(f"  ...正在爬取 [差评]...")
@@ -92,13 +93,13 @@ def get_reviews_with_cache(appid, game_real_name, force_update=False):
     
     except Exception as e:
         print(f"❌ 爬虫 fetch_game_reviews 失败: {e}")
-        return pd.DataFrame(), False, {} # 返回 3 个值
+        return pd.DataFrame(), False, {} 
 
     df = pd.concat([df_positive, df_negative], ignore_index=True)
         
     if df.empty:
         print("爬取到空数据，不写入缓存。")
-        return df, False, {} # 返回 3 个值
+        return df, False, {} 
 
     # 3. [Cache WRITE] 写入新缓存
     conn = sqlite3.connect(DB_NAME)
@@ -109,6 +110,8 @@ def get_reviews_with_cache(appid, game_real_name, force_update=False):
         total_pos = summary.get('total_positive', 0)
         total_neg = summary.get('total_negative', 0)
         score_desc = summary.get('review_score_desc', '无评分')
+        
+        # 确保写入语句是 5 个值
         cursor.execute("""
             REPLACE INTO metadata (appid, last_updated, total_positive, total_negative, review_score_desc) 
             VALUES (?, ?, ?, ?, ?)
@@ -121,4 +124,4 @@ def get_reviews_with_cache(appid, game_real_name, force_update=False):
     finally:
         conn.close()
         
-    return df, True, summary # <-- 返回 3 个值
+    return df, True, summary
