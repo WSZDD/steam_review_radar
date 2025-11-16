@@ -10,13 +10,81 @@
   <style>
     /* ===== 页面整体 ===== */
     body {
-      background: radial-gradient(circle at top, #1b1b2f, #0d0d16);
       color: #e0e0e0;
       font-family: 'Segoe UI', sans-serif;
     }
+    body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle, rgba(20, 24, 40, 0.8), #0f172a);
+  z-index: -2;
+}
 
+/* 网格 */
+body::after {
+  content: "";
+  position: fixed;
+  top: 0; left: 0;
+  width: 200%;
+  height: 200%;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  transform: translate(-25%, -25%) rotate(0deg);
+  animation: grid-flow 15s linear infinite;
+  z-index: -1;
+  opacity: 0.6;
+  filter: blur(1px);
+}
+
+/* 网格缓慢流动 */
+@keyframes grid-flow {
+  0% {
+    transform: translate(-25%, -25%) rotate(0deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(1deg);
+  }
+}
+
+/* 流动波纹光效 */
+.wave-highlight {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 300%;
+  height: 300%;
+  opacity: 0.05;
+  background: radial-gradient(circle, rgba(255,255,255,0.6), transparent 70%);
+  animation: wave-rotate 20s infinite linear;
+  z-index: -1;
+}
+
+@keyframes wave-rotate {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
     h1, h3, h4 { color: #4fc3f7; text-shadow: 0 0 10px rgba(79,195,247,0.5); }
+    .observe-fade-in {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
 
+    /* 当 JS 添加 .is-visible 类后：完全可见且回到原位 */
+    .observe-fade-in.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
     /* ===== 游戏信息卡 ===== */
     .info-card {
       background-color: rgba(40,40,60,0.9);
@@ -209,6 +277,17 @@
     .topic-item:hover {
         background-color: #2a3f5a; /* 悬停时加深背景 */
     }
+    .topic-item.active {
+        background-color: #4fc3f7; /* 使用主题的亮蓝色 */
+        color: #0d0d16; /* 深色文字 */
+        box-shadow: 0 0 10px rgba(79,195,247,0.7); /* 蓝色辉光 */
+        border-left: 5px solid #66d0f8; /* 左侧加一个亮边框 */
+        padding-left: 20px; /* 配合边框，增加一点内边距 */
+    }
+    .topic-item.active strong,
+    .topic-item.active p {
+        color: #0d0d16 !important; /* 使用 !important 确保覆盖 */
+    }
     .scrollable-topics {
         max-height: 350px;
         overflow-y: auto;
@@ -296,6 +375,7 @@
     <div class="loader"></div>
     <p>加载中</p>
 </div>
+<div class="wave-highlight"></div>
 <div class="container py-5">
   <h1 class="text-center mb-5">🎮 Steam 游戏评论雷达</h1>
 
@@ -311,7 +391,7 @@
   {% endif %}
 
   {% if game_info %}
-  <div class="info-card mb-4 w-75 mx-auto">
+  <div class="info-card mb-4 w-75 mx-auto observe-fade-in">
     <div class="row g-3">
       <div class="col-md-4 text-center">
         <img src="{{ game_info.header_image }}" alt="封面" class="game-cover" width="280">
@@ -349,10 +429,10 @@
       </div>
     </div>
   </div> {% endif %}
-
-  <div class="dashboard-card mb-4 w-75 mx-auto">
+  {% if game_info %}
+  <div class="dashboard-card mb-4 w-75 mx-auto observe-fade-in">
     <div class="row g-3">
-          <div class="col-lg-12">
+          <div class="col-lg-12  observe-fade-in">
             <div class="dashboard-block">
                 <h4>
                     主要{{ review_label }}主题 (BERTopic)
@@ -377,7 +457,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-8">
+        <div class="col-lg-8 observe-fade-in">
             <div class="dashboard-block">
                 <h4>{{ review_label }} 主题词云</h4>
                 <div class="chart-container">
@@ -389,7 +469,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-lg-4 observe-fade-in">
             <div class="dashboard-block">
                 <h4>情感雷达 (仅好评)</h4>
                 <div class="chart-container">
@@ -401,7 +481,7 @@
             </div>
         </div>
 
-        <div class="col-lg-4">
+        <div class="col-lg-4 observe-fade-in">
             <div class="dashboard-block">
                 <h4>玩家体验阶段</h4>
                 <div class="chart-container">
@@ -412,9 +492,9 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-8">
+        <div class="col-lg-8 observe-fade-in">
             <div class="dashboard-block">
-                <h4>情感随时间变化</h4>
+                <h4>好差评随时间变化</h4>
                 <div class="chart-container">
                     <div id="time_series_chart" 
                          style="width: 100%; height: 350px;"
@@ -425,9 +505,9 @@
         </div>
     </div>
   </div>
-
+  {% endif %}
   {% if game_info %}
-  <div class="text-center mb-4">
+  <div class="text-center mb-4 observe-fade-in">
     <form method="POST" style="display:inline;">
       <input type="hidden" name="game_name" value="{{ game_name }}">
       <input type="hidden" name="review_type" value="positive">
@@ -445,14 +525,14 @@
     </form>
   </div>
 
-  <div class="review-list w-75 mx-auto">
+  <div class="review-list w-75 mx-auto observe-fade-in">
     <h3>{{ review_label }}列表</h3>
   </div>
 
   <div class="info-card mb-4 w-75 mx-auto">
     <div class="masonry">
     {% for i, row in reviews.iterrows() %}
-    <div class="masonry-item">
+    <div class="masonry-item observe-fade-in">
       <div class="card mb-2 p-2 comment-card"
            data-steamid="{{ row['author_name'] }}"
            data-appid="{{ row['appid'] }}"

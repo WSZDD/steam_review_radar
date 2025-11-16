@@ -4,15 +4,10 @@
 $(document).ready(function(){
     var wordcloudChart = null; // 用于高亮联动
     var wordCloudData = [];     // 存储词云的原始数据
-    var originalWordCloudColorFunc = function () { // 存储原始颜色
-        return 'rgb(' + [
-            Math.round(Math.random() * 160) + 95,
-            Math.round(Math.random() * 160) + 95,
-            Math.round(Math.random() * 160) + 95
-        ].join(',') + ')';
-    };
+    // (我们不再需要 originalWordCloudColorFunc，因为 'downplay' 会正确重置)
+
     // ===================================
-    // 1. 评论卡片点击弹窗 (来自你的 jQuery)
+    // 1. 评论卡片点击弹窗 (无变化)
     // ===================================
     $(document).on("click", ".comment-card", function(){
         // --- 【修改】读取所有 data-* 属性 ---
@@ -56,38 +51,38 @@ $(document).ready(function(){
         });
     });
     // ===================================
-    // 2. 表单提交 "加载中" 提示 (来自你的 jQuery)
+    // 2. 表单提交 "加载中" 提示 (无变化)
     // ===================================
     $("form").on("submit", function() {
         $("#loadingOverlay").css("display", "flex");
     });
 
     // ===================================
-    // 3. ECharts 交互式词云 (来自我们之前的逻辑)
+    // 3. ECharts 交互式词云 (封装到函数)
     // ===================================
-    
-    // 3.1 查找 ECharts 容器
-    const chartDom = document.getElementById('wordcloud_chart');
-    if (chartDom) {
-        
-        // --- 【修改】将数据赋给全局变量 ---
+    function initWordCloud() {
+        const chartDom = document.getElementById('wordcloud_chart');
+        // 检查是否已初始化，防止重复加载
+        if (!chartDom || chartDom.dataset.initialized) return;
+        chartDom.dataset.initialized = 'true';
+
+        console.log("Lazy Loading: initWordCloud");
+
         wordCloudData = JSON.parse(chartDom.dataset.wordData);
         const topicMap = JSON.parse(chartDom.dataset.topicMap);
-        // --- 【修改结束】 ---
 
         if (wordCloudData && wordCloudData.length > 0) {
-            
-            // --- 【修改】将 ECharts 实例赋给全局变量 ---
-            wordCloudChart = echarts.init(chartDom);
-            // --- 【修改结束】 ---
+            wordCloudChart = echarts.init(chartDom); // 赋值给全局变量
 
             const option = {
-                tooltip: { /* (保留 tooltip 逻辑) */
+                tooltip: { 
                     trigger: 'item',
                     backgroundColor: 'rgba(0,0,0,0.8)',
                     borderColor: '#66c0f4',
                     borderWidth: 1,
                     textStyle: { color: '#fff' },
+                    // 【已应用】限制弹窗宽度
+                    extraCssText: 'max-width: 350px; white-space: normal; word-break: break-word;', 
                     formatter: function (params) {
                         const word = params.data.name;
                         const topic_id = params.data.topic_id;
@@ -101,7 +96,7 @@ $(document).ready(function(){
                         }
                     }
                 },
-                series: [{ /* (保留 series 逻辑) */
+                series: [{ 
                     type: 'wordCloud',
                     shape: 'pentagon',
                     data: wordCloudData,
@@ -119,11 +114,11 @@ $(document).ready(function(){
                             ].join(',') + ')';
                         }
                     },
-                    emphasis: { // <-- 【重要】高亮时的样式
+                    emphasis: { 
                         textStyle: {
-                            color: '#FFFFFF', // 高亮时变白色
+                            color: '#FFFFFF', 
                             shadowBlur: 50,
-                            shadowColor: '#4fc3f7' // 蓝色辉光
+                            shadowColor: '#4fc3f7'
                         }
                     }
                 }]
@@ -136,12 +131,18 @@ $(document).ready(function(){
         }
     }
 
-    // --- 【核心修改】替换这个时序图逻辑 ---
-    const timeChartDom = document.getElementById('time_series_chart');
-    if (timeChartDom) {
+    // ===================================
+    // 4. 时序图 (封装到函数)
+    // ===================================
+    function initTimeSeriesChart() {
+        const timeChartDom = document.getElementById('time_series_chart');
+        if (!timeChartDom || timeChartDom.dataset.initialized) return;
+        timeChartDom.dataset.initialized = 'true';
+
+        console.log("Lazy Loading: initTimeSeriesChart");
+
         const timeData = JSON.parse(timeChartDom.dataset.timeSeries);
 
-        // 检查新数据结构是否有效
         if (timeData && timeData.dates && timeData.dates.length > 0) {
             const timeChart = echarts.init(timeChartDom);
             const option = {
@@ -158,20 +159,20 @@ $(document).ready(function(){
                     borderColor: '#66c0f4',
                     textStyle: { color: '#fff' }
                 },
-                legend: { // <-- 新增图例
+                legend: {
                     data: ['好评数', '差评数'],
                     textStyle: { color: '#e0e0e0' }
                 },
                 grid: {
                     left: '3%',
                     right: '4%',
-                    bottom: '10%', // 增加底部空间给 dataZoom
+                    bottom: '10%',
                     containLabel: true
                 },
                 xAxis: {
                     type: 'category',
                     boundaryGap: false,
-                    data: timeData.dates, // X 轴 (日期)
+                    data: timeData.dates,
                     axisLine: { lineStyle: { color: '#8392A5' } }
                 },
                 yAxis: {
@@ -184,13 +185,13 @@ $(document).ready(function(){
                     { type: 'inside', start: 0, end: 100 },
                     { start: 0, end: 100 }
                 ],
-                series: [ // <-- 【核心修改】两条线
+                series: [
                     {
                         name: '好评数',
                         type: 'line',
                         smooth: true,
-                        data: timeData.positive_counts, // Y 轴 (好评)
-                        itemStyle: { color: '#4CAF50' }, // 绿色
+                        data: timeData.positive_counts,
+                        itemStyle: { color: '#4CAF50' },
                         areaStyle: {
                             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
                                 offset: 0,
@@ -205,8 +206,8 @@ $(document).ready(function(){
                         name: '差评数',
                         type: 'line',
                         smooth: true,
-                        data: timeData.negative_counts, // Y 轴 (差评)
-                        itemStyle: { color: '#F44336' }, // 红色
+                        data: timeData.negative_counts,
+                        itemStyle: { color: '#F44336' },
                         areaStyle: {
                             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
                                 offset: 0,
@@ -226,11 +227,18 @@ $(document).ready(function(){
         }
     }
 
-    const Sentimenttime = document.getElementById('playtime_sentiment_chart'); // <-- 使用新 ID
-    if (Sentimenttime) {
-        const timeData = JSON.parse(Sentimenttime.dataset.playtimeSentiment); // <-- 使用新 data- 
+    // ===================================
+    // 5. 游玩时长情感图 (封装到函数)
+    // ===================================
+    function initPlaytimeSentimentChart() {
+        const Sentimenttime = document.getElementById('playtime_sentiment_chart');
+        if (!Sentimenttime || Sentimenttime.dataset.initialized) return;
+        Sentimenttime.dataset.initialized = 'true';
 
-        // 检查新数据结构是否有效
+        console.log("Lazy Loading: initPlaytimeSentimentChart");
+
+        const timeData = JSON.parse(Sentimenttime.dataset.playtimeSentiment); 
+
         if (timeData && timeData.labels && timeData.labels.length > 0) {
             const timeChart = echarts.init(Sentimenttime);
             const option = {
@@ -256,7 +264,7 @@ $(document).ready(function(){
                 },
                 xAxis: {
                     type: 'category',
-                    data: timeData.labels, // X 轴 (时长标签)
+                    data: timeData.labels,
                     axisLine: { lineStyle: { color: '#8392A5' } }
                 },
                 yAxis: {
@@ -270,17 +278,17 @@ $(document).ready(function(){
                 series: [
                     {
                         name: '好评情感',
-                        type: 'bar', // 使用柱状图
+                        type: 'bar',
                         smooth: true,
-                        data: timeData.positive_scores, // Y 轴 (好评均分)
-                        itemStyle: { color: '#4CAF50' }, // 绿色
+                        data: timeData.positive_scores,
+                        itemStyle: { color: '#4CAF50' },
                     },
                     {
                         name: '差评情感',
-                        type: 'bar', // 使用柱状图
+                        type: 'bar',
                         smooth: true,
-                        data: timeData.negative_scores, // Y 轴 (差评均分)
-                        itemStyle: { color: '#F44336' }, // 红色
+                        data: timeData.negative_scores,
+                        itemStyle: { color: '#F44336' },
                     }
                 ]
             };
@@ -291,14 +299,19 @@ $(document).ready(function(){
         }
     }
 
-    const radarDom = document.getElementById('radarChart');
-    if (radarDom) {
+    // ===================================
+    // 6. 雷达图 (封装到函数)
+    // ===================================
+    function initRadarChart() {
+        const radarDom = document.getElementById('radarChart');
+        if (!radarDom || radarDom.dataset.initialized) return;
+        radarDom.dataset.initialized = 'true';
+
+        console.log("Lazy Loading: initRadarChart");
+
         try {
-            // 假设你在 index.html 中是这样传递数据的:
-            // <div id="radarChart" data-radar="{{ radar_json | safe }}"></div>
             const radarData = JSON.parse(radarDom.dataset.radar);
 
-            // 检查数据是否有效
             if (radarData && radarData.indicator && radarData.value) {
                 const radarChart = echarts.init(radarDom);
                 const radarOption = {
@@ -307,7 +320,7 @@ $(document).ready(function(){
                     },
                     radar: {
                         shape: 'circle', 
-                        indicator: radarData.indicator, // 使用后端传来的维度定义
+                        indicator: radarData.indicator,
                         axisName: {
                             color: '#ccc',
                             fontSize: 12
@@ -331,7 +344,7 @@ $(document).ready(function(){
                             type: 'radar',
                             data: [
                                 {
-                                    value: radarData.value, // 使用后端计算的平均分
+                                    value: radarData.value,
                                     name: '游戏维度分析',
                                     areaStyle: {
                                         color: new echarts.graphic.RadialGradient(0.5, 0.5, 0.5, [
@@ -352,7 +365,6 @@ $(document).ready(function(){
                 };
                 radarChart.setOption(radarOption);
                 
-                // 响应式调整
                 $(window).on('resize', function () {
                     radarChart.resize();
                 });
@@ -362,16 +374,20 @@ $(document).ready(function(){
         }
     }
 
+
+    // ===================================
+    // 7. 词云图交互 (无变化)
+    // ===================================
+    
+    // 7.A. 点击主题列表
     $(document).on("click", ".topic-item", function(){
-        if (!wordCloudChart || wordCloudData.length === 0) return; // 检查图表是否已初始化
+        if (!wordCloudChart || wordCloudData.length === 0) return; 
         
         const topicId = $(this).data("topic-id"); 
 
-        // 1. 找到所有匹配和不匹配的词的 *索引*
         let highlightIndices = [];
         let downplayIndices = [];
         wordCloudData.forEach((item, index) => {
-            // BERTopic 的 topic_id 是数字，jQuery data() 也会返回数字
             if (item.topic_id === topicId) {
                 highlightIndices.push(index);
             } else {
@@ -379,7 +395,6 @@ $(document).ready(function(){
             }
         });
 
-        // 2. 调度 ECharts 动作 (这 *不会* 重新布局)
         wordCloudChart.dispatchAction({
             type: 'downplay',
             seriesIndex: 0,
@@ -391,23 +406,151 @@ $(document).ready(function(){
             dataIndex: highlightIndices
         });
 
-        // 3. 显示“重置”按钮
         $("#resetWordcloudHighlight").show();
     });
 
-    // 7.B. 点击“重置高亮”按钮
+    // 7.B. 点击“重置高亮”按钮 (使用 'downplay' 修复)
     $(document).on("click", "#resetWordcloudHighlight", function(e){
-        e.preventDefault(); // 阻止 <a> 标签跳转
+        e.preventDefault(); 
         if (!wordCloudChart) return;
 
-        // 重新高亮所有数据
+        // 【已应用】使用 'downplay' 动作来取消所有高亮和淡化
         wordCloudChart.dispatchAction({
-            type: 'highlight',
+            type: 'downplay',
             seriesIndex: 0,
             dataIndex: wordCloudData.map((_, index) => index)
         });
         
-        // 隐藏自己
         $(this).hide();
     });
+
+
+    // --- 【核心修改】 ---
+    // ===================================
+    // 8. Intersection Observer 懒加载
+    // ===================================
+
+    // 检查浏览器是否支持 IntersectionObserver
+    if ('IntersectionObserver' in window) {
+        
+        // 映射图表 ID 到它们的初始化函数 (无变化)
+        const chartInitMap = {
+            'wordcloud_chart': initWordCloud,
+            'time_series_chart': initTimeSeriesChart,
+            'playtime_sentiment_chart': initPlaytimeSentimentChart,
+            'radarChart': initRadarChart
+        };
+
+        // --- 【关键修改】更新回调函数 ---
+        const lazyLoadCallback = (entries, observer) => {
+            entries.forEach(entry => {
+                // 检查元素是否进入视口
+                if (entry.isIntersecting) {
+                    const target = entry.target; // 这是 .observe-fade-in 元素
+                    target.classList.add('is-visible');
+
+                    let chartElement = null;
+                    const chartId = target.id;
+
+                    if (chartInitMap[chartId]) {
+                        chartElement = target;
+                    } else {
+                        chartElement = target.querySelector('#wordcloud_chart, #time_series_chart, #playtime_sentiment_chart, #radarChart');
+                    }
+
+                    if (chartElement) {
+                        const idToInit = chartElement.id;
+                        const initFunction = chartInitMap[idToInit];
+                        
+                        // 检查图表元素是否已初始化
+                        if (initFunction && !chartElement.dataset.initialized) {
+                            initFunction(); 
+                            // (initFunction 内部会设置 .dataset.initialized)
+                        }
+                    }
+                    
+                    observer.unobserve(target);
+                }
+            });
+        };
+
+        const lazyLoadObserver = new IntersectionObserver(lazyLoadCallback, {
+            root: null, // 相对于浏览器视口
+            threshold: 0.1  // 元素进入视口 10% 时触发
+        });
+
+        document.querySelectorAll('.observe-fade-in').forEach(element => {
+            if (element) {
+                lazyLoadObserver.observe(element);
+            }
+        });
+
+    } else {
+        // 如果浏览器太旧不支持 (无变化)
+        console.warn("IntersectionObserver not supported. Loading all charts immediately.");
+        initWordCloud();
+        initTimeSeriesChart();
+        initPlaytimeSentimentChart();
+        initRadarChart();
+        document.querySelectorAll('.observe-fade-in').forEach(element => {
+            element.classList.add('is-visible');
+        });
+    }
+    
+    if (typeof tsParticles !== 'undefined') {
+        console.log("tsParticles is available.");
+        tsParticles.load("tsparticles", {
+            // "fullScreen": false, // 我们用 CSS 手动控制
+            "interactivity": {
+                "events": {
+                    "onHover": { // 鼠标悬停
+                        "enable": true,
+                        "mode": "grab" // 模式：抓取
+                    },
+                    "onClick": { // 鼠标点击
+                        "enable": true,
+                        "mode": "push" // 模式：推送
+                    }
+                },
+                "modes": {
+                    "grab": {
+                        "distance": 150, 
+                        "links": { "opacity": 0.8 }
+                    },
+                    "push": {
+                        "quantity": 2 
+                    }
+                }
+            },
+            "particles": {
+                "color": { "value": "#ffffff" },
+                "links": { // 粒子连线
+                    "color": { "value": "#66c0f4" }, // 连线颜色：Steam 蓝色
+                    "distance": 150,
+                    "enable": true,
+                    "opacity": 0.3,
+                    "width": 1
+                },
+                "move": { // 粒子移动
+                    "enable": true,
+                    "speed": 1.5,
+                    "direction": "none",
+                    "random": true, // 确保这里是 'true',
+                    "straight": false,
+                    "outModes": "out"
+                },
+                "number": { // 粒子数量
+                    "value": 60,
+                    "density": {
+                        "enable": true,
+                        "area": 800
+                    }
+                },
+                "opacity": { "value": 0.4 },
+                "shape": { "type": "circle" },
+                "size": { "value": { "min": 1, "max": 3 } }
+            },
+            "detectRetina": true
+        });
+    }
 });

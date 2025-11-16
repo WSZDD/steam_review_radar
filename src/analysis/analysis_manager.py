@@ -22,7 +22,7 @@ def _calculate_playtime_sentiment(df):
             'score_gameplay', 'score_visuals', 'score_story', 'score_opt', 'score_value'
         ]].mean(axis=1)
         bins = [-1, 120, 600, 1200, 999999] 
-        labels = ['0-2h (初见)', '2-10h (中期)', '10-20h (深入)', '20h+ (老炮)']
+        labels = ['0-2h (初见)', '2-10h (中期)', '10-20h (深入)', '20h+ (老手)']
         df['playtime_bin'] = pd.cut(pd.to_numeric(df['playtime_at_review']), bins=bins, labels=labels, right=True)
         grouped = df.groupby(['playtime_bin', 'voted_up'])['avg_sentiment'].mean().unstack(fill_value=0.5)
         grouped = grouped.rename(columns={True: 'positive', False: 'negative'})

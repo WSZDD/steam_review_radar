@@ -1,4 +1,4 @@
 *.png
 *.pyc
 .venv/
-.static/analysis_cache/
+*.json
